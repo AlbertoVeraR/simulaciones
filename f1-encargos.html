@@ -123,6 +123,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
   place-items: center; font-style: normal; color: #fff; border: 2px solid #fff; }
 .linea .m.dolor { background: var(--rojo); }
 .linea .m.mejora { background: var(--verde); }
+.linea .m.igual { background: #a9b1bc; }
+.linea-panel .leyenda { margin-left: auto; font-size: 11.5px; color: var(--suave); white-space: nowrap; }
 .linea strong { display: block; font-size: 12px; line-height: 1.25; font-weight: 650; color: #3d4860; }
 .linea li.actual strong { color: var(--tinta); }
 .linea small { display: block; font-size: 11px; color: var(--suave); margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -366,6 +368,30 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .pm { width: 250px; }
 }
 
+/* ---------- Pestañas de casos del mismo nicho ---------- */
+.casos { position: absolute; top: 5px; left: 12px; right: 12px; height: 26px; z-index: 6; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.casos::-webkit-scrollbar { display: none; }
+.casos a, .casos span { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  background: rgba(255, 255, 255, .72); color: #46526a; box-shadow: 0 1px 5px rgba(31, 45, 80, .1); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.casos a:hover { background: #fff; color: var(--tinta); }
+.casos b { font-weight: 800; }
+.casos .actual { background: #fff; color: var(--tinta); box-shadow: 0 0 0 2px var(--esc), 0 2px 8px rgba(31, 45, 80, .13); }
+.casos .pronto { background: rgba(31, 42, 61, .06); color: #9aa4b5; box-shadow: none; cursor: default; }
+.casos .pronto small { font-size: 10px; font-weight: 600; }
+@media (min-width: 761px) {
+  .con-casos .barra { top: 34px; }
+  .con-casos .tarjetas { top: 106px; }
+  .con-casos .panel-paso { top: 106px; max-height: calc(100% - 106px - 214px); }
+  .con-casos .zoom { top: 198px; }
+  .con-casos .toast { top: 216px; }
+}
+@media (max-width: 760px) {
+  .casos { left: 8px; right: 8px; }
+  .con-casos .barra { top: 34px; }
+  .con-casos .tarjetas { top: 136px; }
+  .con-casos .toast { top: 206px; }
+}
+
 </style>
 </head>
 <body>
@@ -384,7 +410,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
   <div class="zoom panel"><button class="b-mas" aria-label="Acercar">+</button><button class="b-menos" aria-label="Alejar">−</button><button class="b-centro" aria-label="Volver a la toma">⟲</button></div>
   <footer class="pie">
     <div class="linea-panel panel">
-      <div class="cab"><b>Línea de pasos</b><span class="esc-nombre"></span></div>
+      <div class="cab"><b>Línea de pasos</b><span class="esc-nombre"></span><span class="leyenda">✓ mejora · ⚠ problema · = igual que hoy · el paso hecho se rellena</span></div>
       <ol class="linea"></ol>
     </div>
     <div class="control-panel panel">
@@ -778,6 +804,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     }
     // Cuello y cabeza.
     K.en(torso, K.cilindro(0.05, 0.09, mPiel, 12), 0, 0.545, 0);
+    if (def.collarin) K.en(torso, K.cilindro(0.068, 0.1, K.mat('#f4efe3'), 14), 0, 0.56, 0);   // collarín cervical (opcional)
     const cabeza = j.cabeza = K.en(torso, new T.Group(), 0, 0.58, 0);
     const craneo = K.en(cabeza, K.esfera(0.112, mPiel, 22), 0, 0.085, 0.005); craneo.scale.set(0.93, 1.08, 1);
     const ojo = K.brillo('#1f2533');
@@ -1621,6 +1648,22 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(R, '.t-caso').textContent = G.caso + ' · ' + G.titulo;
     $(R, '.t-negocio').textContent = G.negocio + ' · simulación';
     $(R, '.logo').textContent = G.icono || '✚';
+    // Pestañas de los casos del mismo nicho (solo si hay más de uno)
+    if (SIM.casos && SIM.casos.length > 1) {
+      R.classList.add('con-casos');
+      const nav0 = document.createElement('nav'); nav0.className = 'casos'; nav0.setAttribute('aria-label', 'Casos del nicho');
+      nav0.innerHTML = SIM.casos.map(c => c.actual ? '<span class="actual" aria-current="page"><b>' + esc(c.codigo) + '</b> ' + esc(c.titulo) + '</span>'
+        : c.activo ? '<a href="' + esc(c.archivo) + '" data-caso="' + esc(c.archivo) + '"><b>' + esc(c.codigo) + '</b> ' + esc(c.titulo) + '</a>'
+        : '<span class="pronto" title="Próximamente"><b>' + esc(c.codigo) + '</b> ' + esc(c.titulo) + ' <small>próximamente</small></span>').join('');
+      nav0.addEventListener('click', e => {
+        const a = e.target.closest('a[data-caso]'); if (!a) return;
+        e.preventDefault();
+        const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+        const q = new URLSearchParams(); if (h.get('escenario')) q.set('escenario', h.get('escenario')); if (h.get('vista')) q.set('vista', h.get('vista'));
+        location.href = a.dataset.caso + (q.toString() ? '#' + q.toString() : '');
+      });
+      R.insertBefore(nav0, R.firstChild);
+    }
     // Selector de escenario
     const nav = $(R, '.escenarios');
     nav.innerHTML = G.escenarios.map(e => '<button data-esc="' + e.id + '" style="--c:' + e.color + '"><i></i><span>' + esc(e.nombre) + '</span></button>').join('');
@@ -1688,7 +1731,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     R.querySelectorAll('.escenarios button').forEach(b => b.classList.toggle('activo', b.dataset.esc === e.id));
     $(R, '.esc-nombre').textContent = e.nombre + (e.lema ? ' · ' + e.lema : '');
     $(R, '.linea').innerHTML = e.pasos.map((p, i) => {
-      const marca = (p.dolores && p.dolores.length) ? '<em class="m dolor">⚠</em>' : (p.mejoras && p.mejoras.length) ? '<em class="m mejora">✓</em>' : '';
+      const marca = (p.dolores && p.dolores.length) ? '<em class="m dolor" title="Problema de hoy">⚠</em>' : (p.mejoras && p.mejoras.length) ? '<em class="m mejora" title="Mejora frente a hoy">✓</em>' : e.id !== 'actual' ? '<em class="m igual" title="Igual que hoy">=</em>' : '';
       return '<li data-k="' + i + '" title="' + esc(p.titulo) + '"><span class="bola"><b>' + (i + 1) + '</b>' + marca + '</span><strong>' + esc(p.titulo) + '</strong><small>' + esc(p.hora) + ' · ' + n1(p.min) + ' min</small></li>';
     }).join('');
     u.ocultarResumen(); u.indicadores(); u.area = null;
@@ -1837,10 +1880,10 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const u = this, s = u.sim, G = u.G, e = s.esc, R = u.raiz;
     const r = SIM.calculo.escenario(G, s.supuestos, e), b = SIM.calculo.escenario(G, s.supuestos, G.escenarios[0]);
     const i = G.escenarios.indexOf(e), sig = G.escenarios[i + 1], base = i === 0;
-    const fila = (et, a, c) => '<tr><td>' + esc(et) + '</td><td>' + a + '</td><td>' + c + '</td></tr>';
+    const fila = (et, a, c) => '<tr><td>' + esc(et) + '</td><td>' + a + '</td>' + (base ? '' : '<td>' + c + '</td>') + '</tr>';
     const I = G.indicadores || {};
     $(R, '.resumen').innerHTML = '<div class="resumen-card"><button class="cerrar" data-accion="cerrar" aria-label="Cerrar" title="Cerrar">×</button><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
-      '<table><thead><tr><th></th><th>Hoy</th><th>' + (base ? 'Hoy' : esc(e.nombre)) + '</th></tr></thead><tbody>' +
+      '<table><thead><tr><th></th><th>Hoy</th>' + (base ? '' : '<th>' + esc(e.nombre) + '</th>') + '</tr></thead><tbody>' +
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
       fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n1(b.errores), n1(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
@@ -3119,6 +3162,7 @@ SIM.escena = function (K, M) {
 })();
 
 </script>
+<script>SIM.casos = null;</script>
 <script>SIM.arrancar();</script>
 </body>
 </html>
