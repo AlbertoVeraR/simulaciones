@@ -54,6 +54,9 @@ canvas.lienzo3d:active { cursor: grabbing; }
 .vivo { display: flex; align-items: center; gap: 7px; background: #e8f7ef; color: #13895a; font-weight: 750; font-size: 13px; padding: 8px 11px; border-radius: 12px;
   font-variant-numeric: tabular-nums; }
 .vivo i { width: 8px; height: 8px; border-radius: 50%; background: var(--verde); animation: latido 1.6s infinite; }
+.b-preguntas { border: 0; background: var(--tinta); color: #fff; border-radius: 12px; padding: 9px 13px; display: flex; align-items: center; gap: 7px; font-weight: 650; font-size: 13px; cursor: pointer; }
+.b-preguntas[hidden] { display: none; }
+.b-preguntas:hover { background: #2c3a54; }
 .b-supuestos { border: 0; background: var(--tinta); color: #fff; border-radius: 12px; padding: 9px 13px; display: flex; align-items: center; gap: 7px;
   font-weight: 650; font-size: 13px; cursor: pointer; }
 .b-supuestos:hover { background: #2c3a54; }
@@ -221,6 +224,16 @@ canvas.lienzo3d:active { cursor: grabbing; }
 .sup-tabla td { padding: 8px; border-bottom: 1px solid #f0f2f6; font-weight: 650; }
 .sup-tabla td i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
 .formulas { font-size: 12px; color: var(--suave); margin: 12px 0 0; }
+.modal-card .cerrar.rojo { background: #fdecea; color: #d64545; }
+.modal-card .cerrar.rojo:hover { background: #d64545; color: #fff; }
+.modal-preguntas .modal-card { width: min(680px, calc(100% - 24px)); }
+.preg-grupo h4 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+.preg { margin: 0 0 12px; }
+.preg label { display: block; font-size: 14px; font-weight: 650; color: #26324a; margin-bottom: 5px; line-height: 1.35; }
+.preg textarea { width: 100%; box-sizing: border-box; border: 1px solid #d9e0ea; border-radius: 10px; padding: 9px 10px; font: 500 14px/1.35 inherit; font-family: inherit; color: var(--tinta); background: #f9fafc; resize: vertical; min-height: 54px; }
+.preg textarea:focus { outline: 2px solid var(--esc); border-color: transparent; background: #fff; }
+.preg-nota { font-size: 12px; color: var(--suave); margin: 4px 0 0; }
+.preg-botones { position: sticky; bottom: -20px; background: linear-gradient(0deg, #fff 70%, rgba(255,255,255,0)); padding-top: 10px; flex-wrap: wrap; }
 .sup-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .sup-botones button, .res-botones button { border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 700; cursor: pointer; background: #f1f4f8; }
 .sup-botones .prin { background: var(--tinta); color: #fff; }
@@ -312,7 +325,10 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .logo { width: 32px; height: 32px; font-size: 19px; border-radius: 10px; }
   .titulos b { font-size: 13.5px; }
   .b-supuestos { padding: 8px 10px; }
-  .b-supuestos span { display: none; }
+  .b-supuestos span, .b-preguntas span { display: none; }
+  .b-preguntas { padding: 8px 10px; }
+  .preg textarea { font-size: 16px; }
+  .preg-botones button { flex: 1; }
   .escenarios { padding: 3px; }
   .escenarios button { padding: 7px 8px; font-size: 12.5px; gap: 5px; flex: 1; justify-content: center; }
   .interruptor { padding: 3px; }
@@ -403,7 +419,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     <div class="marca"><span class="logo">✚</span><div class="titulos"><b class="t-caso"></b><small class="t-negocio"></small></div></div>
     <nav class="escenarios" aria-label="Escenario"></nav>
     <div class="interruptor" aria-label="Vista"></div>
-    <div class="derecha"><span class="vivo" title="Hora simulada"><i></i><b>--:--</b></span><button class="b-supuestos" aria-label="Supuestos"></button></div>
+    <div class="derecha"><span class="vivo" title="Hora simulada"><i></i><b>--:--</b></span><button class="b-preguntas" aria-label="Preguntas" hidden></button><button class="b-supuestos" aria-label="Supuestos"></button></div>
   </header>
   <section class="tarjetas" aria-label="Indicadores"></section>
   <aside class="panel-paso panel" aria-live="polite"></aside>
@@ -430,6 +446,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
   <div class="ficha-persona panel" hidden></div>
   <div class="modal modal-modulo" hidden><div class="fondo" data-cerrar></div><div class="modal-card"></div></div>
   <div class="modal modal-supuestos" hidden><div class="fondo" data-cerrar></div><div class="modal-card"></div></div>
+  <div class="modal modal-preguntas" hidden><div class="fondo" data-cerrar></div><div class="modal-card"></div></div>
   <div class="resumen" hidden></div>
   <div class="fundido"></div>
   <div class="error3d" hidden>Este navegador no puede mostrar la escena 3D. Prueba con Chrome, Edge, Safari o Firefox actualizados.</div>
@@ -1579,7 +1596,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const arriba = V(0, ca, -sa), pts = [];
     mods.forEach(o => {
       [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(c => pts.push(V(o.x + c[0] * (PW / 2 + 0.4), TOP, o.z + c[1] * PD / 2 + (c[1] > 0 ? 0.95 : 0))));   // con el brillo de NUEVO y los arcos
-      pts.push(V(o.x - WD / 2, 3.3, o.z - 2.4), V(o.x + WD / 2, 3.3, o.z - 2.4), V(o.x, ANCLA[0], o.z + ANCLA[1]).addScaledVector(arriba, foco ? 2.0 : 1.55));
+      pts.push(V(o.x - WD / 2, 3.3, o.z - 2.4), V(o.x + WD / 2, 3.3, o.z - 2.4), V(o.x, ANCLA[0], o.z + ANCLA[1]).addScaledVector(arriba, foco ? 2.0 : 3.4));
     });
     const cam = new T.PerspectiveCamera(fov, aspecto, 0.1, 400), p = V(), mira = V((x0 + x1) / 2, 1.3, (z0 + z1) / 2), mx = foco ? 0.9 : 0.97, my = foco ? 0.88 : 0.97;
     let dist = 36;
@@ -1631,6 +1648,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     lugar: '<svg viewBox="0 0 24 24"><path d="M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>',
     escena: '<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10H3z"/><path d="M9 20v-6h6v6"/></svg>',
     monitor: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+    preguntas: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.6M12 16.8v.2"/></svg>',
     ajustes: '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
   };
   const $ = (r, s) => r.querySelector(s);
@@ -1674,6 +1692,11 @@ canvas.lienzo3d:active { cursor: grabbing; }
     sw.addEventListener('click', e => { const b = e.target.closest('button'); if (b) s.ponerVista(b.dataset.vista); });
     $(R, '.b-supuestos').innerHTML = ICO.ajustes + '<span>Supuestos</span>';
     $(R, '.b-supuestos').addEventListener('click', () => u.abrirSupuestos());
+    if (G.preguntas && G.preguntas.length) {
+      const bp = $(R, '.b-preguntas'); bp.hidden = false;
+      bp.innerHTML = ICO.preguntas + '<span>Preguntas para vosotros</span>';
+      bp.addEventListener('click', () => u.abrirPreguntas());
+    }
     // Tarjetas
     const I = G.indicadores || {};
     const tarjetas = [
@@ -1858,6 +1881,42 @@ canvas.lienzo3d:active { cursor: grabbing; }
     };
     M.onclick = e => { const b = e.target.closest('[data-accion="restablecer"]'); if (b) { s.supuestos = SIM.calculo.porDefecto(G); u.indicadores(); u.abrirSupuestos(); } };
   };
+  // ---------- Preguntas para el cliente: respuestas solo en el navegador (localStorage por caso); nunca se envían solas ----------
+  P._textoPreguntas = function () {
+    const G = this.G, R = this._resp || {}; let n = 0;
+    let t = 'Preguntas para ' + (G.negocio || 'el cliente') + ' · ' + G.caso + ' ' + G.titulo + '\n';
+    G.preguntas.forEach((g, gi) => {
+      t += '\n' + g.titulo.toUpperCase() + '\n';
+      g.items.forEach((q, qi) => { n++; t += '\n' + n + '. ' + q + '\nRespuesta: ' + ((R[gi + '-' + qi] || '').trim() || '(sin responder)') + '\n'; });
+    });
+    return t;
+  };
+  P.abrirPreguntas = function () {
+    const u = this, G = u.G, M = $(u.raiz, '.modal-preguntas'), clave = 'sim-preguntas-' + G.id;
+    try { u._resp = JSON.parse(localStorage.getItem(clave) || '{}') || {}; } catch (x) { u._resp = {}; }
+    let n = 0;
+    const grupos = G.preguntas.map((g, gi) => '<section class="preg-grupo"><h4>' + esc(g.titulo) + '</h4>' + g.items.map((q, qi) => {
+      n++; return '<div class="preg"><label><b>' + n + '.</b> ' + esc(q) + '</label><textarea rows="2" data-r="' + gi + '-' + qi + '" placeholder="Vuestra respuesta">' + esc(u._resp[gi + '-' + qi] || '') + '</textarea></div>';
+    }).join('') + '</section>').join('');
+    $(M, '.modal-card').innerHTML =
+      '<button class="cerrar rojo" data-cerrar aria-label="Cerrar">×</button><h3>Preguntas para el despacho</h3>' + ((G.intro || G.preguntasIntro) ? '<p class="sub">' + esc(G.intro || G.preguntasIntro) + '</p>' : '') +
+      '<div class="preg-lista">' + grupos + '</div>' +
+      '<p class="preg-nota">Lo que escribáis se queda en este navegador. No se envía nada hasta que pulséis uno de los botones.</p>' +
+      '<div class="sup-botones preg-botones"><button data-accion="copiar">Copiar respuestas</button><button class="prin" data-accion="whatsapp">Enviar por WhatsApp</button></div>';
+    M.hidden = false;
+    M.oninput = e => {
+      const a = e.target.closest('textarea'); if (!a) return;
+      u._resp[a.dataset.r] = a.value; try { localStorage.setItem(clave, JSON.stringify(u._resp)); } catch (x) { /* sin almacenamiento */ }
+    };
+    M.onclick = e => {
+      const b = e.target.closest('[data-accion]'); if (!b) return;
+      const txt = u._textoPreguntas();
+      if (b.dataset.accion === 'whatsapp') { window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank', 'noopener'); return; }
+      const listo = () => u.toast('Respuestas copiadas', 'listas para pegar');
+      const viejo = () => { const t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); listo(); } catch (x) { u.toast('No se pudo copiar', ''); } t.remove(); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(listo, viejo); else viejo();
+    };
+  };
   P._tablaSupuestos = function (M) {
     const u = this, G = u.G, v = u.sim.supuestos;
     M.querySelectorAll('.sup-tabla tbody tr').forEach((tr, i) => {
@@ -1957,6 +2016,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     s.acciones.sort((x, y) => x.t - y.t || x.n - y.n);
     s.monitor.construir(esc, s._vertical());
     s.ui.escenario(esc);
+    if (s.mundo.alCargar) s.mundo.alCargar(esc);   // la escena del caso puede cambiar con el escenario (A2)
     s.reiniciar();
   };
   P.reiniciar = function () {
@@ -2181,6 +2241,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     if (paso >= 1) { const k = Math.min(paso, s.pasos.length) - 1; s.irA(k, pausa ? (s.pasos[k].foto != null ? s.pasos[k].foto : 0.6) : 0, !pausa); }
     else s.irA(0, 0, !pausa);
     if (h.get('resumen') === '1') { s.irA(s.pasos.length - 1, 1, false); s.ui.fin(); }
+    if (h.get('preguntas') === '1' && s.G.preguntas && s.ui.abrirPreguntas) s.ui.abrirPreguntas();
     s.escribiendo = false; s.escribirHash();
   };
   P.escribirHash = function () {
@@ -2709,6 +2770,12 @@ SIM.escena = function (K, M) {
       errores: { etiqueta: 'Demandas con algún dato mal copiado (%)', valores: { actual: 8, mejorado: 3, optimo: 1 } },
     },
     formulas: 'Horas al mes = demandas al día × días × minutos por demanda ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Errores al mes = demandas al mes × %. El ahorro supone que el despacho recupera ese tiempo (paga menos por demanda o las hace dentro). Se hace siempre, en los tres escenarios (supuesto, sin confirmar con el despacho): Marcos entrevista al cliente en persona, un abogado revisa y firma, se presenta a mano en LexNET y el informe original en papel se guarda.',
+    intro: 'Las cifras de esta simulación son estimadas. Con vuestras respuestas las ponemos reales y corregimos lo que no sea así.',
+    preguntas: [
+      { titulo: 'Volumen y coste', items: ['¿Cuántas demandas al mes y cuánto pagáis por cada una?', '¿Cuántas plantillas hay por tipo de caso? ¿Qué parte se redacta a mano y cuánto ocupa?'] },
+      { titulo: 'Documentos', items: ['¿Qué documentos entran además del informe médico (atestado, parte amistoso, póliza, informe de secuelas)?', '¿Hay reclamación previa a la aseguradora antes de la demanda?', '¿Podéis darnos 3 a 5 demandas con su informe médico, anonimizadas?'] },
+      { titulo: 'Lo que se hace siempre', items: ['¿Quién hace la entrevista, quién firma y quién presenta en LexNET?', '¿Qué no es así en vuestro despacho?'] },
+    ],
     textoPantalla: 'Cómo se vería en el ordenador del despacho',
     notaDatos: 'Simulación con datos ficticios · cifras estimadas',
     pantallas,
@@ -2911,7 +2978,7 @@ SIM.escena = function (K, M) {
 })();
 
 </script>
-<script>SIM.casos = [{"codigo": "A1", "titulo": "Demandas", "archivo": "a1-demandas.html", "activo": true, "actual": true}, {"codigo": "A2", "titulo": "Expedientes", "archivo": "a2-expedientes.html", "activo": false, "actual": false}, {"codigo": "A3", "titulo": "Llamadas", "archivo": "a3-llamadas.html", "activo": false, "actual": false}];</script>
+<script>SIM.casos = [{"codigo": "A1", "titulo": "Demandas", "archivo": "a1-demandas.html", "activo": true, "actual": true}, {"codigo": "A2", "titulo": "Expedientes", "archivo": "a2-expedientes.html", "activo": true, "actual": false}, {"codigo": "A3", "titulo": "Llamadas", "archivo": "a3-llamadas.html", "activo": false, "actual": false}];</script>
 <script>SIM.arrancar();</script>
 </body>
 </html>
