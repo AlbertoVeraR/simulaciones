@@ -287,6 +287,9 @@ canvas.lienzo3d:active { cursor: grabbing; }
 .res-texto { margin: 12px 0 0; color: #3d4860; }
 .res-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .res-botones .prin { background: var(--c); color: #fff; }
+.resumen-card { position: relative; }
+.resumen-card .cerrar { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 0; background: #fdecea; color: #d64545; font-size: 19px; line-height: 30px; cursor: pointer; }
+.resumen-card .cerrar:hover { background: #d64545; color: #fff; }
 .resumen-card .nota { margin: 12px 0 0; font-size: 11.5px; color: #8a95a8; text-align: center; }
 
 @keyframes latido { 50% { opacity: .35; } }
@@ -1651,6 +1654,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       const pp = e.target.closest('[data-persona]'); if (pp) { const r = pp.getBoundingClientRect(), ra = R.getBoundingClientRect(); u.fichaPersona(s.personas[pp.dataset.persona], r.left - ra.left + r.width / 2, r.top - ra.top); }
     });
     $(R, '.resumen').addEventListener('click', e => {
+      if (e.target === e.currentTarget) { u.ocultarResumen(); return; }   // clic fuera de la tarjeta: cierra
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.accion === 'repetir') s.irA(0, 0, true);
       if (b.dataset.accion === 'siguiente') u.cambiarEscenario(b.dataset.esc, true);
@@ -1835,7 +1839,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const i = G.escenarios.indexOf(e), sig = G.escenarios[i + 1], base = i === 0;
     const fila = (et, a, c) => '<tr><td>' + esc(et) + '</td><td>' + a + '</td><td>' + c + '</td></tr>';
     const I = G.indicadores || {};
-    $(R, '.resumen').innerHTML = '<div class="resumen-card"><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
+    $(R, '.resumen').innerHTML = '<div class="resumen-card"><button class="cerrar" data-accion="cerrar" aria-label="Cerrar" title="Cerrar">×</button><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
       '<table><thead><tr><th></th><th>Hoy</th><th>' + (base ? 'Hoy' : esc(e.nombre)) + '</th></tr></thead><tbody>' +
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
       fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n1(b.errores), n1(r.errores)) + '</tbody></table>' +
@@ -2707,6 +2711,7 @@ SIM.escena = function (K, M) {
 (function () {
   'use strict';
   const AZUL = '#2f63d6', NUEVO = '#0f9a6c', GRIS = '#5b6b86';
+  const VOZ = ['Hola, soy el asistente automático de Farmacia Demo: su encargo ya está en la farmacia.', 'También se lo enviamos por WhatsApp.'];
   const MSG = 'Hola, Sr. Ramírez: su encargo (Colirio Hidrafresh 10 ml) ya está en Farmacia Demo. Puede recogerlo hoy hasta las 21:00.';
   const ESTADOS = ['Por pedir', 'Pedido', 'Llegó', 'Avisado', 'Recogido'];
   const TONO_ESTADO = { 'Por pedir': 'ambar', Pedido: 'azul', 'Llegó': 'verde', Avisado: 'verde', Recogido: 'gris' };
@@ -2797,10 +2802,14 @@ SIM.escena = function (K, M) {
       { tipo: 'aviso', texto: 'Aparta en la cesta: «Encargo de Ramírez»', tono: 'verde' }] },
     'whatsapp-rec': { marco: 'movil', app: 'Farmacia Demo', titulo: 'mensaje automático', bloques: [{ tipo: 'chat', mensajes: [
       { texto: MSG, hora: '13:31' }, { texto: 'Recordatorio: su encargo sigue esperándole en Farmacia Demo.', hora: 'a los 3 días' }] }] },
+    'llamada-ia': { app: 'Asistente de voz con IA', titulo: 'Llamada automática al cliente', color: NUEVO, bloques: [
+      { tipo: 'llamada', numero: '600 12 34 56', estado: 'Contestada · aviso dado en 20 s', tono: 'verde' },
+      { tipo: 'aviso', texto: 'A la vez sale el WhatsApp; si no contesta, deja el aviso en el buzón', tono: 'verde' }] },
     // Móvil del cliente
     'movil-bloqueado': { marco: 'bloqueo', titulo: '10:15', bloques: [] },
     'movil-sonando': { marco: 'bloqueo', titulo: '13:35', bloques: [{ texto: 'Llamada entrante: Farmacia Demo', tono: 'verde' }] },
     'movil-perdida': { marco: 'bloqueo', titulo: '13:37', bloques: [{ texto: 'Llamada perdida: Farmacia Demo', tono: 'rojo' }] },
+    'movil-ia': { marco: 'bloqueo', titulo: '13:31', bloques: [{ texto: 'Llamada entrante: Farmacia Demo · asistente de voz', tono: 'verde' }] },
   };
 
   // ---------- Trozos de guion que se repiten ----------
@@ -3019,23 +3028,25 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== ÓPTIMO =====================
       { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa y a los almacenes', color: '#1fb57a',
-        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo; al recogerlo basta escanear el código del resguardo.',
+        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo con una llamada de un asistente de voz con IA y un WhatsApp a la vez; al recogerlo basta escanear el código del resguardo.',
         inicio: [[0, 'ocultar', 'papelito2'], [0, 'ocultar', 'papelito3'], [0, 'ocultar', 'papelito4']],
         modulos: [mod(M.stock, { col: 0, fila: 0, pantalla: 'stock-comparador', nota: 'El programa de siempre, ahora con la disponibilidad de los almacenes en la misma pantalla.' }),
           { id: 'conector', nombre: 'Conector con el programa', tipo: 'nodo', pantalla: 'conector', col: 1, fila: 0, nuevo: true,
-            nota: 'Une el programa de gestión con la lista, los almacenes y WhatsApp: lee stock y fichas de clientes.', construir: 'Integración con el programa de gestión (exportación o conexión que ofrezca el proveedor).' },
+            nota: 'Une el programa de gestión con la lista, los almacenes, WhatsApp y el asistente de voz: lee stock y fichas de clientes.', construir: 'Integración con el programa de gestión (exportación o conexión que ofrezca el proveedor).' },
           { id: 'comparador', nombre: 'Comparador de almacenes', tipo: 'pantalla', pantalla: 'eleccion', col: 2, fila: 0, nuevo: true,
             nota: 'Elige el almacén más barato que lo tiene y avisa al momento si hay desabastecimiento.', construir: 'Consulta de disponibilidad y precio en A, B y C.' },
           mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'El mismo resguardo con código. Al recogerlo se escanea el código y el encargo queda «Recogido» en la lista.' }),
           { id: 'whatsappRec', nombre: 'WhatsApp con recordatorio', tipo: 'movil', pantalla: 'whatsapp-rec', col: 0, fila: 1, nuevo: true,
-            nota: 'Aviso al llegar y recordatorio a los 3 días si no lo recoge; al venderlo queda «Recogido».', construir: 'Plantillas de WhatsApp y una regla de 3 días.' },
+            nota: 'Aviso al llegar (a la vez que la llamada) y recordatorio a los 3 días si no lo recoge; al venderlo queda «Recogido».', construir: 'Plantillas de WhatsApp y una regla de 3 días.' },
+          { id: 'llamadaIA', nombre: 'Llamada con IA de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 1, fila: 2, nuevo: true,
+            nota: 'Al llegar el encargo, un asistente de voz con IA llama al cliente y le da el aviso; a la vez sale el WhatsApp.', construir: 'Agente de voz con IA conectado a la lista: llamada saliente con un guion corto que dice que es un asistente automático.' },
           { id: 'lista', nombre: 'Lista de encargos', tipo: 'pantalla', pantalla: lista('Por pedir'), col: 1, fila: 1, nuevo: true,
             nota: 'La misma lista con estados, rellenada sola desde el programa.' },
           { id: 'pedidoAuto', nombre: 'Pedido automático', tipo: 'pantalla', pantalla: 'pedido-auto', col: 2, fila: 1, nuevo: true,
             nota: 'El encargo entra solo en el siguiente pedido (11:00) con el almacén elegido.' },
           { id: 'detector', nombre: 'Detector en la recepción', tipo: 'pantalla', pantalla: 'detector', extras: ['escaner', 'cubeta'], col: 3, fila: 1, nuevo: true,
             nota: 'Al cerrar la recepción detecta el encargo y dice de quién es para apartarlo.' }],
-        tubos: [['stock', 'conector'], ['conector', 'comparador'], ['conector', 'lista'], ['lista', 'pedidoAuto'], ['comparador', 'pedidoAuto'], ['comparador', 'papelito'], ['pedidoAuto', 'detector'], ['detector', 'lista', 'arco'], ['lista', 'whatsappRec']],
+        tubos: [['stock', 'conector'], ['conector', 'comparador'], ['conector', 'lista'], ['lista', 'pedidoAuto'], ['comparador', 'pedidoAuto'], ['comparador', 'papelito'], ['pedidoAuto', 'detector'], ['detector', 'lista', 'arco'], ['lista', 'whatsappRec'], ['lista', 'llamadaIA']],
         pasos: [
           { titulo: 'Pide el producto', quien: 'Lucía y el cliente', donde: 'Mostrador', min: 1, modo: 'manual', hora: '10:15', dur: 11, foto: 0.86,
             texto: 'Stock 0 y, en la misma pantalla, disponibilidad y precio en los almacenes A, B y C.', mejoras: ['Todo en una pantalla'], estado: 'Sin stock · el B lo tiene', personas: ['lucia', 'ramirez'],
@@ -3053,11 +3064,11 @@ SIM.escena = function (K, M) {
             ] },
           { titulo: 'Elige el almacén solo', quien: 'El sistema (Lucía confirma)', donde: 'Ordenador del mostrador', min: 0.2, modo: 'manual', hora: '10:17', dur: 12, foto: 0.62,
             texto: 'Entra en el siguiente pedido con el almacén más barato que lo tiene; si hubiera desabastecimiento avisaría al momento, con el cliente aún en el mostrador. Sale el resguardo con el código (E-0427).', mejoras: ['Elige el más barato con stock'], estado: 'En el pedido de las 11:00', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
-            haciendo: { lucia: 'Confirma el almacén que propone el sistema y entrega el resguardo.', ramirez: 'Recibe su resguardo y se va tranquilo: le avisarán por WhatsApp.' },
+            haciendo: { lucia: 'Confirma el almacén que propone el sistema y entrega el resguardo.', ramirez: 'Recibe su resguardo y se va tranquilo: le avisarán por teléfono y WhatsApp.' },
             monitor: { ruta: ['lista', 'pedidoAuto'], manual: ['comparador', 'papelito'], senales: [['comparador', 'pedidoAuto'], ['comparador', 'papelito']] },
             acciones: [
               [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'], [0.4, 'pantalla', 'pc1', 'eleccion'], [1.2, 'marca', 'mejora', 'pc1', 'Elige el más barato con stock', 3.6],
-              [3.6, 'toma', 'entrega'], [3.6, 'hacer', 'lucia', 'hablar'], [3.7, 'decir', 'lucia', 'Le llega hoy a mediodía y le avisamos por WhatsApp.', 2.6],
+              [3.6, 'toma', 'entrega'], [3.6, 'hacer', 'lucia', 'hablar'], [3.7, 'decir', 'lucia', 'Le llega hoy a mediodía; le avisamos por teléfono y WhatsApp.', 2.8],
               [4.0, 'mostrar', 'resguardo1'], [4.0, 'mover', 'resguardo1', 'impresora.salida', 0.9],
               [5.6, 'hacer', 'lucia', 'coger'], [6.0, 'agarrar', 'lucia', 'resguardo1', 'D'], [6.2, 'hacer', 'lucia', 'hablar'],
               [6.3, 'decir', 'lucia', 'Aquí tiene su resguardo: E-0427.', 2.2], [6.5, 'mover', 'resguardo1', 'mostrador.entrega', 0.6],
@@ -3081,23 +3092,27 @@ SIM.escena = function (K, M) {
               [7.7, 'toma', 'recepcion'], [7.8, 'dejar', 'escaner', 'escaner.base'], [7.8, 'hacer', 'lucia', 'libre'],
               [8.4, 'mover', 'colirio', 'cesta.dentro', 0.9], [8.6, 'decir', 'lucia', 'Apartado: «Encargo de Ramírez».', 2.2],
             ]) },
-          { titulo: 'Aviso, recordatorio y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 18, foto: 0.4,
-            texto: 'WhatsApp al llegar y recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Aviso y recordatorio solos', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
-            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Recibe el WhatsApp y pasa a recogerlo con su resguardo.' },
-            monitor: { ruta: ['lista', 'whatsappRec'], pantallas: { lista: lista('Recogido') } },
-            acciones: whatsapp('whatsapp').concat([
-              [2.8, 'marca', 'mejora', 'ramirez', 'Aviso automático', 4], [6.8, 'pantalla', 'movilR', 'whatsapp-rec'],
-              [7.2, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días'], [8.4, 'decir', 'ramirez', 'Paso esta tarde.', 2],
+          { titulo: 'Llamada, WhatsApp y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'Teléfono, WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 23.5, foto: 0.15,
+            texto: 'Al llegar, un asistente de voz con IA llama al cliente y, a la vez, sale el WhatsApp; recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Llamada con IA y WhatsApp a la vez', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
+            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Contesta la llamada del asistente, ve el WhatsApp y pasa a recogerlo con su resguardo.' },
+            monitor: { ruta: ['lista', 'llamadaIA'], senales: [['lista', 'llamadaIA'], ['lista', 'whatsappRec']], pantallas: { lista: lista('Recogido') } },
+            acciones: [
+              // Llama el asistente de voz y, a la vez, llega el WhatsApp.
+              [0, 'toma', 'banco'], [0.4, 'pantalla', 'movilR', 'movil-ia'], [0.4, 'efecto', 'movilRamirez', 'sonar', true], [0.5, 'marca', 'mejora', 'ramirez', 'Llamada con IA de voz', 1.5], [1.3, 'efecto', 'movilRamirez', 'sonar', false],
+              [1.4, 'hacer', 'ramirez', 'coger'], [1.7, 'agarrar', 'ramirez', 'movilRamirez', 'D'], [1.9, 'hacer', 'ramirez', 'telefono'],
+              [2.1, 'decir', 'movilRamirez', VOZ[0], 2.8], [5.0, 'decir', 'movilRamirez', VOZ[1], 2.2], [7.4, 'decir', 'ramirez', 'Perfecto, gracias.', 1.3],
+              [8.8, 'hacer', 'ramirez', 'movil'], [8.8, 'pantalla', 'movilR', 'whatsapp'], [9.0, 'mensaje', 'movilRamirez', MSG, 3.8], [9.2, 'marca', 'mejora', 'ramirez', 'Y a la vez, WhatsApp', 3.4],
+              [12.9, 'pantalla', 'movilR', 'whatsapp-rec'], [13.1, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días'], [14.0, 'decir', 'ramirez', 'Paso esta tarde.', 2],
               // Por la tarde vuelve con su resguardo: se escanea el código y queda «Recogido».
-              [10.6, 'rotulo', 'Por la tarde', 'El Sr. Ramírez vuelve a recoger su encargo'],
-              [11.0, 'toma', 'entrega'], [11.0, 'dejar', 'movilRamirez', 'banco.movil'], [11.0, 'pantalla', 'movilR', 'movil-bloqueado'],
-              [11.0, 'poner', 'lucia', 'mostrador.tec1'], [11.0, 'hacer', 'lucia', 'libre'], [11.0, 'poner', 'ramirez', 'mostrador.cliente1'], [11.0, 'hacer', 'ramirez', 'libre'],
-              [11.0, 'agarrar', 'ramirez', 'resguardo1', 'D'], [11.4, 'hacer', 'ramirez', 'coger'], [11.7, 'mover', 'resguardo1', 'mostrador.entrega', 0.7],
-              [12.2, 'hacer', 'ramirez', 'hablar'], [12.3, 'decir', 'ramirez', 'Mi encargo, código E-0427.', 2.4], [13.2, 'hacer', 'ramirez', 'libre'],
-              [13.0, 'agarrar', 'lucia', 'escaner', 'D'], [13.2, 'hacer', 'lucia', 'escanear'], [13.4, 'efecto', 'escaner', 'laser', true], [14.0, 'efecto', 'escaner', 'laser', false],
-              [14.1, 'pantalla', 'pc1', lista('Recogido')], [14.4, 'marca', 'mejora', 'pc1', 'Recogido con un escaneo', 3],
-              [15.2, 'dejar', 'escaner', 'escaner.base'], [15.2, 'hacer', 'lucia', 'hablar'], [15.4, 'decir', 'lucia', 'Listo, ya queda «Recogido». ¡Buena tarde!', 2.4],
-            ]) },
+              [16.0, 'rotulo', 'Por la tarde', 'El Sr. Ramírez vuelve a recoger su encargo'],
+              [16.4, 'toma', 'entrega'], [16.4, 'dejar', 'movilRamirez', 'banco.movil'], [16.4, 'pantalla', 'movilR', 'movil-bloqueado'],
+              [16.4, 'poner', 'lucia', 'mostrador.tec1'], [16.4, 'hacer', 'lucia', 'libre'], [16.4, 'poner', 'ramirez', 'mostrador.cliente1'], [16.4, 'hacer', 'ramirez', 'libre'],
+              [16.4, 'agarrar', 'ramirez', 'resguardo1', 'D'], [16.8, 'hacer', 'ramirez', 'coger'], [17.1, 'mover', 'resguardo1', 'mostrador.entrega', 0.7],
+              [17.6, 'hacer', 'ramirez', 'hablar'], [17.7, 'decir', 'ramirez', 'Mi encargo, código E-0427.', 2.4], [18.6, 'hacer', 'ramirez', 'libre'],
+              [18.4, 'agarrar', 'lucia', 'escaner', 'D'], [18.6, 'hacer', 'lucia', 'escanear'], [18.8, 'efecto', 'escaner', 'laser', true], [19.4, 'efecto', 'escaner', 'laser', false],
+              [19.5, 'pantalla', 'pc1', lista('Recogido')], [19.8, 'marca', 'mejora', 'pc1', 'Recogido con un escaneo', 3],
+              [20.6, 'dejar', 'escaner', 'escaner.base'], [20.6, 'hacer', 'lucia', 'hablar'], [20.8, 'decir', 'lucia', 'Listo, ya queda «Recogido». ¡Buena tarde!', 2.4],
+            ] },
         ] },
     ],
   };
