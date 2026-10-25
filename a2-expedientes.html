@@ -127,7 +127,12 @@ canvas.lienzo3d:active { cursor: grabbing; }
 .linea .m.dolor { background: var(--rojo); }
 .linea .m.mejora { background: var(--verde); }
 .linea .m.igual { background: #a9b1bc; }
-.linea-panel .leyenda { margin-left: auto; font-size: 11.5px; color: var(--suave); white-space: nowrap; }
+.linea-panel .leyenda { display: flex; justify-content: center; gap: 20px; margin-top: 12px; font-size: 12px; color: var(--suave); white-space: nowrap; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda .m { width: 19px; height: 19px; border-radius: 50%; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; font-style: normal; color: #fff; }
+.leyenda .m.dolor { background: var(--rojo); }
+.leyenda .m.mejora { background: var(--verde); }
+.leyenda .m.igual { background: #a9b1bc; }
 .linea strong { display: block; font-size: 12px; line-height: 1.25; font-weight: 650; color: #3d4860; }
 .linea li.actual strong { color: var(--tinta); }
 .linea small { display: block; font-size: 11px; color: var(--suave); margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -353,6 +358,9 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .pie { left: 8px; right: 8px; bottom: 22px; flex-direction: column; gap: 6px; }
   .linea-panel { padding: 8px 10px 8px; border-radius: 16px; }
   .linea-panel .cab { display: none; }
+  .linea-panel .leyenda { margin-top: 5px; gap: 10px; font-size: 10px; }
+  .leyenda .m { width: 14px; height: 14px; font-size: 8px; }
+  .leyenda span:last-child { display: none; }
   .linea { margin: 0; }
   .linea li { padding: 0 2px; }
   .linea li::before { top: 14px; }
@@ -426,8 +434,9 @@ canvas.lienzo3d:active { cursor: grabbing; }
   <div class="zoom panel"><button class="b-mas" aria-label="Acercar">+</button><button class="b-menos" aria-label="Alejar">−</button><button class="b-centro" aria-label="Volver a la toma">⟲</button></div>
   <footer class="pie">
     <div class="linea-panel panel">
-      <div class="cab"><b>Línea de pasos</b><span class="esc-nombre"></span><span class="leyenda">✓ mejora · ⚠ problema · = igual que hoy · el paso hecho se rellena</span></div>
+      <div class="cab"><b>Línea de pasos</b><span class="esc-nombre"></span></div>
       <ol class="linea"></ol>
+      <div class="leyenda"><span><em class="m mejora">✓</em> mejora</span><span><em class="m dolor">⚠</em> problema</span><span><em class="m igual">=</em> igual que hoy</span><span>el paso hecho se rellena</span></div>
     </div>
     <div class="control-panel panel">
       <div class="botones">
@@ -3080,7 +3089,7 @@ SIM.escena = function (K, M) {
 })();
 
 </script>
-<script>SIM.casos = [{"codigo": "A1", "titulo": "Demandas", "archivo": "a1-demandas.html", "activo": true, "actual": false}, {"codigo": "A2", "titulo": "Expedientes", "archivo": "a2-expedientes.html", "activo": true, "actual": true}, {"codigo": "A3", "titulo": "Llamadas", "archivo": "a3-llamadas.html", "activo": false, "actual": false}];</script>
+<script>SIM.casos = [{"codigo": "A1", "titulo": "Demandas", "archivo": "a1-demandas.html", "activo": true, "actual": false}, {"codigo": "A2", "titulo": "Expedientes", "archivo": "a2-expedientes.html", "activo": true, "actual": true}, {"codigo": "A3", "titulo": "Llamadas", "archivo": "a3-llamadas.html", "activo": true, "actual": false}];</script>
 <script>SIM.arrancar();</script>
 </body>
 </html>
