@@ -953,7 +953,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
 // Formato: { marco: 'ventana' | 'movil' | 'papel' | 'llamada', app, titulo, color, bloques: [...] }
 // Bloques: campos { filas: [[etiqueta, valor, tono]] } · tabla { columnas, filas, resaltar, anchos } · aviso { texto, tono }
 //          botones { items, principal } · estados { items, actual } · chat { contacto, mensajes: [{ texto, hora, de }] }
-//          lineas { items } · texto { texto } · llamada { numero, estado }
+//          (un mensaje con audio: '0:09' es una nota de voz: botón ▶, onda y duración)
+//          lineas { items, ajustar } · texto { texto, tam, max } · llamada { numero, estado }
 // Una celda de tabla puede ser texto o { t: 'texto', tono }. Tonos: rojo, verde, ambar, azul, gris.
 (function (g) {
   'use strict';
@@ -965,6 +966,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
   const ICONO = { rojo: '⚠ ', ambar: '⚠ ', verde: '✓ ' };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const celda = x => (x && typeof x === 'object') ? x : { t: x };
+  const ONDA = [0.35, 0.6, 0.9, 0.5, 0.75, 0.4, 0.95, 0.65, 0.3, 0.8, 0.55, 0.9, 0.45, 0.7, 0.35, 0.85, 0.5, 0.6, 0.3, 0.45];   // alturas de la onda de una nota de voz
 
   // Busca la descripción de una pantalla en el guion. id puede ser 'nombre' o ['nombre', parámetro].
   function resolver(id, param) {
@@ -1042,6 +1044,17 @@ canvas.lienzo3d:active { cursor: grabbing; }
     },
     chat(c, b, x, y, w, u) {
       (b.mensajes || []).forEach(m => {
+        if (m.audio) {   // nota de voz: botón ▶, onda y duración
+          const yo = m.de === 'yo', bw = w * 0.78, bx = yo ? x + w - bw : x, h = 12 * u, cy = y + 4.9 * u;
+          c.fillStyle = yo ? '#dcf8c6' : '#ffffff'; K.rr(c, bx, y, bw, h, 2.5 * u); c.fill();
+          c.fillStyle = '#128c7e'; c.beginPath(); c.arc(bx + 5.8 * u, cy, 3.7 * u, 0, 7); c.fill();
+          c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(bx + 4.8 * u, cy - 1.9 * u); c.lineTo(bx + 4.8 * u, cy + 1.9 * u); c.lineTo(bx + 7.6 * u, cy); c.closePath(); c.fill();
+          const x0 = bx + 11.5 * u, paso = (bw - 14.5 * u) / ONDA.length;
+          ONDA.forEach((a, i) => { c.fillStyle = i < 7 ? '#128c7e' : '#b3bcc7'; c.fillRect(x0 + i * paso, cy - a * 2.7 * u, Math.max(1, paso * 0.55), a * 5.4 * u); });
+          fuente(c, 500, 3.8 * u); c.fillStyle = '#8a95a8'; c.fillText(m.audio, x0, y + h - 2.3 * u);
+          if (m.hora) c.fillText(m.hora, bx + bw - 11 * u, y + h - 2.3 * u);
+          y += h + 2.5 * u; return;
+        }
         fuente(c, 500, 5.3 * u);
         const ls = lineasDe(c, m.texto, w * 0.72), h = 4 * u + ls.length * 6.4 * u, yo = m.de === 'yo', bw = w * 0.78;
         const bx = yo ? x + w - bw : x;
@@ -1053,13 +1066,18 @@ canvas.lienzo3d:active { cursor: grabbing; }
       return y;
     },
     lineas(c, b, x, y, w, u) {
-      c.font = '600 ' + Math.round(6 * u) + 'px "SF Mono", Menlo, Consolas, monospace'; c.fillStyle = '#2b3140';
-      b.items.forEach(l => { c.fillText(recortar(c, l, w), x, y + 4 * u); y += 8 * u; });
+      const mono = p => '600 ' + Math.round(p * u) + 'px "SF Mono", Menlo, Consolas, monospace'; c.fillStyle = '#2b3140';
+      b.items.forEach(l => {
+        let p = 6; c.font = mono(p);
+        if (b.ajustar) while (p > 3.4 && c.measureText(l).width > w) { p -= 0.2; c.font = mono(p); }   // ajustar: la línea se encoge en vez de cortarse
+        c.fillText(recortar(c, l, w), x, y + 4 * u); y += 8 * u;
+      });
       return y;
     },
     texto(c, b, x, y, w, u) {
-      fuente(c, 500, 5.6 * u); c.fillStyle = '#4a5568';
-      lineasDe(c, b.texto, w).slice(0, 3).forEach(l => { c.fillText(l, x, y + 4 * u); y += 7 * u; });
+      const t = b.tam || 5.6, k = t / 5.6;   // tam: tamaño de la letra; max: líneas como máximo (por defecto 3)
+      fuente(c, 500, t * u); c.fillStyle = '#4a5568';
+      lineasDe(c, b.texto, w).slice(0, b.max || 3).forEach(l => { c.fillText(l, x, y + 4 * k * u); y += 7 * k * u; });
       return y;
     },
     llamada(c, b, x, y, w, u) {
@@ -1119,7 +1137,12 @@ canvas.lienzo3d:active { cursor: grabbing; }
     aviso: b => '<div class="pv-aviso' + tono(b.tono || 'azul') + '">' + esc((ICONO[b.tono] || '') + b.texto) + '</div>',
     botones: b => '<div class="pv-botones">' + b.items.map((t, i) => '<span' + (i === (b.principal || 0) ? ' class="prin"' : '') + '>' + esc(t) + '</span>').join('') + '</div>',
     estados: b => '<div class="pv-estados">' + b.items.map((t, i) => '<span class="' + (i === b.actual ? 'act' : i < b.actual ? 'hecho' : '') + '">' + esc(t) + '</span>').join('') + '</div>',
-    chat: b => '<div class="pv-chat">' + (b.mensajes || []).map(m => '<p class="' + (m.de === 'yo' ? 'yo' : '') + '">' + esc(m.texto) + (m.hora ? '<small>' + esc(m.hora) + '</small>' : '') + '</p>').join('') + '</div>',
+    chat: b => '<div class="pv-chat">' + (b.mensajes || []).map(m => m.audio
+      ? '<p class="' + (m.de === 'yo' ? 'yo' : '') + '" style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:200px">' +
+        '<i style="flex:none;width:32px;height:32px;border-radius:50%;background:#128c7e;color:#fff;font-style:normal;font-size:13px;display:grid;place-items:center;padding-left:2px">▶</i>' +
+        '<span style="display:flex;align-items:center;gap:2px;flex:1;height:28px">' + ONDA.map((a, i) => '<i style="display:block;width:3px;height:' + Math.round(4 + a * 20) + 'px;border-radius:2px;background:' + (i < 7 ? '#128c7e' : '#b3bcc7') + '"></i>').join('') + '</span>' +
+        '<small style="flex-basis:100%;margin:-2px 0 0">' + esc(m.audio) + (m.hora ? ' · ' + esc(m.hora) : '') + '</small></p>'
+      : '<p class="' + (m.de === 'yo' ? 'yo' : '') + '">' + esc(m.texto) + (m.hora ? '<small>' + esc(m.hora) + '</small>' : '') + '</p>').join('') + '</div>',
     lineas: b => '<pre class="pv-lineas">' + b.items.map(esc).join('\n') + '</pre>',
     texto: b => '<p class="pv-texto">' + esc(b.texto) + '</p>',
     llamada: b => '<div class="pv-llamada"><b>' + esc(b.numero) + '</b><span class="' + tono(b.tono || 'gris') + '">' + esc(b.estado || '') + '</span><i>✆</i></div>',
@@ -1305,8 +1328,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
 <script>
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
-// (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, quitado, pantalla, nota }],
+// (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1483,6 +1506,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
       et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+        (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
       et.addEventListener('click', () => m.sim.ui.abrirModulo(def.id));
@@ -1778,7 +1802,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     pon('manuales', r.manuales, base ? 'hoy' : (r.manuales - b.manuales) + ' frente a hoy', base ? null : r.manuales < b.manuales);
     pon('min', n1(r.min) + ' min', base ? 'hoy' : 'antes ' + n1(b.min) + ' min', base ? null : true);
     pon('horas', n1(r.horas) + ' h', base ? n1(r.unidades) + ' ' + (G.unidad.varias || '') + ' al mes' : '−' + n1(r.ahorroH) + ' h al mes', base ? null : true);
-    pon('errores', n1(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n1(b.errores), base ? null : true);
+    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n0(b.errores), base ? null : true);
     pon('ahorro', base ? '0 €' : n0(r.ahorro) + ' €', base ? 'punto de partida' : n0(r.ahorro * 12) + ' € al año', base ? null : true);
   };
 
@@ -1842,10 +1866,10 @@ canvas.lienzo3d:active { cursor: grabbing; }
       const n = pila[clave] = (pila[clave] || 0) + 1;
       // Bocadillos encima del ancla; marcas ⚠ y ✓ a su derecha, apiladas.
       let px = (v.x + 1) / 2 * W + (marca ? 16 : 0), py = (1 - v.y) / 2 * H + (marca ? -14 + (n - 1) * 32 : -(n - 1) * 46);
-      // Que no se salga de la zona libre: si el ancla queda fuera de cuadro, el texto se queda en el borde.
+      // Que no se salga de la zona libre (el bocadillo entero, con su alto real): si el ancla queda fuera de cuadro, el texto se queda en el borde.
       const a = u.areaLibre(), mx = Math.min(130, a.w / 2 - 10);
       px = marca ? Math.max(a.x + 8, Math.min(a.x + a.w - 200, px)) : Math.max(a.x + mx, Math.min(a.x + a.w - mx, px));
-      py = marca ? Math.max(a.y + 8, Math.min(a.y + a.h - 40, py)) : Math.max(a.y + 70, Math.min(a.y + a.h - 6, py));
+      py = marca ? Math.max(a.y + 8, Math.min(a.y + a.h - 40, py)) : Math.max(a.y + Math.max(70, (el._h || (el._h = el.offsetHeight)) + 8), Math.min(a.y + a.h - 6, py));
       el.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)' + (marca ? '' : ' translate(-50%,-100%)');
       vistos.add(x.id);
     });
@@ -1872,7 +1896,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const campo = (k, et, val, paso) => '<label><span>' + esc(et) + '</span><input type="number" inputmode="decimal" min="0" step="' + paso + '" data-k="' + k + '" value="' + val + '"></label>';
     const filas = G.escenarios.map(e => {
       const r = SIM.calculo.escenario(G, v, e);
-      return '<tr><td><i style="background:' + e.color + '"></i>' + esc(e.nombre) + '</td><td>' + n1(r.min) + '</td><td>' + n1(r.horas) + '</td><td>' + n1(r.errores) + '</td><td>' + (e === G.escenarios[0] ? 'punto de partida' : n0(r.ahorro) + ' €') + '</td></tr>';
+      return '<tr><td><i style="background:' + e.color + '"></i>' + esc(e.nombre) + '</td><td>' + n1(r.min) + '</td><td>' + n1(r.horas) + '</td><td>' + n0(r.errores) + '</td><td>' + (e === G.escenarios[0] ? 'punto de partida' : n0(r.ahorro) + ' €') + '</td></tr>';
     }).join('');
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button><h3>Supuestos</h3><p class="sub">Cambia los valores y las cifras se recalculan al momento. Todas son <b>estimación</b>.</p>' +
@@ -1908,7 +1932,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       n++; return '<div class="preg"><label><b>' + n + '.</b> ' + esc(q) + '</label><textarea rows="2" data-r="' + gi + '-' + qi + '" placeholder="Vuestra respuesta">' + esc(u._resp[gi + '-' + qi] || '') + '</textarea></div>';
     }).join('') + '</section>').join('');
     $(M, '.modal-card').innerHTML =
-      '<button class="cerrar rojo" data-cerrar aria-label="Cerrar">×</button><h3>Preguntas para el despacho</h3>' + ((G.intro || G.preguntasIntro) ? '<p class="sub">' + esc(G.intro || G.preguntasIntro) + '</p>' : '') +
+      '<button class="cerrar rojo" data-cerrar aria-label="Cerrar">×</button><h3>' + esc(G.preguntasTitulo || 'Preguntas para el despacho') + '</h3>' + ((G.intro || G.preguntasIntro) ? '<p class="sub">' + esc(G.intro || G.preguntasIntro) + '</p>' : '') +
       '<div class="preg-lista">' + grupos + '</div>' +
       '<p class="preg-nota">Lo que escribáis se queda en este navegador. No se envía nada hasta que pulséis uno de los botones.</p>' +
       '<div class="sup-botones preg-botones"><button data-accion="copiar">Copiar respuestas</button><button class="prin" data-accion="whatsapp">Enviar por WhatsApp</button></div>';
@@ -1930,7 +1954,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const u = this, G = u.G, v = u.sim.supuestos;
     M.querySelectorAll('.sup-tabla tbody tr').forEach((tr, i) => {
       const e = G.escenarios[i], r = SIM.calculo.escenario(G, v, e), td = tr.querySelectorAll('td');
-      td[1].textContent = n1(r.min); td[2].textContent = n1(r.horas); td[3].textContent = n1(r.errores); td[4].textContent = i ? n0(r.ahorro) + ' €' : 'punto de partida';
+      td[1].textContent = n1(r.min); td[2].textContent = n1(r.horas); td[3].textContent = n0(r.errores); td[4].textContent = i ? n0(r.ahorro) + ' €' : 'punto de partida';
     });
   };
   P.fichaPersona = function (p, x, y) {
@@ -1953,7 +1977,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(R, '.resumen').innerHTML = '<div class="resumen-card"><button class="cerrar" data-accion="cerrar" aria-label="Cerrar" title="Cerrar">×</button><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
       '<table><thead><tr><th></th><th>Hoy</th>' + (base ? '' : '<th>' + esc(e.nombre) + '</th>') + '</tr></thead><tbody>' +
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
-      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n1(b.errores), n1(r.errores)) + '</tbody></table>' +
+      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
         : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
@@ -2562,6 +2586,7 @@ SIM.escena = function (K, M) {
   M.punto('impresora.salida', -2.65, 1.25, -0.66, -70, 0, 0);
   M.punto('impresora.salida2', -2.58, 1.27, -0.61, -70, 0, -10);
   M.punto('mostrador.entrega', -2.28, 1.07, -0.12, -90, 0, 8);   // el resguardo pasa por aquí de la mano de Lucía a la del cliente
+  M.punto('mostrador.resguardo', -1.75, 1.065, -0.34, -90, 0, 12);   // el resguardo sobre el mostrador, a la vista de la cámara (a un lado de la pantalla)
   // Cajoneras y baldas de medicamentos detrás del mostrador (las baldas cuelgan de la pared del fondo).
   K.en(E, K.bloque(8.0, 1.0, 0.55, mBlanco), -1.8, 0.5, -2.7);
   for (let x = -5.6; x < 2.1; x += 0.5) for (let y = 0.2; y < 0.95; y += 0.25) {
@@ -2792,22 +2817,17 @@ SIM.escena = function (K, M) {
   M.unir('callejon', 'puerta.trasera.fuera', 'puerta.trasera.dentro', 'recepcion.rep');
 
   // ---------- Tomas de cámara (mira, az: grados alrededor; 0 = desde la calle; alt: grados; dist: metros) ----------
-  M.toma('calle', { mira: [0.1, 1.55, 4.4], az: 14, alt: 12, dist: 10 });
-  M.toma('entrada', { mira: [-1.2, 1.15, 1.2], az: 22, alt: 26, dist: 7.2 });
-  M.toma('mostrador', { mira: [-2.0, 1.15, -0.6], az: 28, alt: 21, dist: 5.6 });
-  M.toma('entrega', { mira: [-2.3, 1.15, -0.4], az: 60, alt: 20, dist: 2.7 });   // de lado: Lucía le da el resguardo al cliente
-  M.toma('pantalla1', { mira: [-2.2, 1.32, -0.55], az: 203, alt: 14, dist: 1.25 });
-  M.toma('sala', { mira: [-0.6, 1.1, -0.4], az: 8, alt: 24, dist: 7.5 });
-  M.toma('estanteria', { mira: [-3.6, 1.3, -2.0], az: 20, alt: 20, dist: 4.4 });
-  M.toma('trastienda', { mira: [3.8, 1.0, -5.6], az: 18, alt: 38, dist: 7.6 });
-  M.toma('tablon', { mira: [5.45, 1.2, -4.85], az: -52, alt: 20, dist: 3.6 });
-  M.toma('telefono', { mira: [5.4, 1.45, -6.2], az: -66, alt: 15, dist: 2.8 });
-  M.toma('recepcion', { mira: [3.0, 1.05, -5.75], az: 28, alt: 28, dist: 4.4 });
-  M.toma('pantallaRecepcion', { mira: [3.0, 1.15, -5.85], az: 40, alt: 26, dist: 2.1 });
-  M.toma('reparto', { mira: [3.6, 1.1, -7.0], az: 12, alt: 26, dist: 6.4 });
-  M.toma('banco', { mira: [-3.0, 0.95, 11.7], az: 205, alt: 12, dist: 3.3 });
-  M.toma('sigueLucia', { sigue: 'lucia', mira: [0, 1.1, 0], az: 24, alt: 30, dist: 6.2 });
-  M.toma('general', { mira: [0, 0.4, -2.2], az: 22, alt: 50, dist: 22 });
+  // Casi todas se ven desde el lado de Lucía, la protagonista: detrás de ella o a su lado. Pocas tomas por paso: se cambia
+  // solo cuando ella cambia de sitio (y si camina, la cámara la sigue en vez de cortar).
+  M.toma('calle', { mira: [0.1, 1.55, 4.4], az: 14, alt: 12, dist: 10 });                  // vista general, antes de empezar un paso
+  M.toma('hombro', { mira: [-1.72, 1.0, 2.58], az: 175, alt: 14, dist: 6.19 });         // por encima del hombro de Lucía: la puerta, la sala y el mostrador
+  M.toma('mostradorL', { mira: [-2.55, 1.25, 0.0], az: 153.4, alt: 18.3, dist: 2.71 });    // cerca, desde su lado: pantalla legible, impresora y la mano del cliente
+  M.toma('estanteria', { mira: [-3.6, 1.3, -2.0], az: 20, alt: 20, dist: 4.4 });         // Lucía repone la estantería, vista por detrás
+  M.toma('telefono', { mira: [5.4, 1.45, -6.2], az: -66, alt: 15, dist: 2.8 });          // detrás de Lucía, junto al teléfono de pared
+  M.toma('pantallaRecepcion', { mira: [3.0, 1.15, -5.85], az: 40, alt: 26, dist: 2.1 }); // a su lado, con la pantalla de la recepción
+  M.toma('reparto', { mira: [3.6, 1.1, -7.0], az: 12, alt: 26, dist: 6.4 });             // trastienda desde la sala: la puerta trasera, la mesa y Lucía
+  M.toma('banco', { mira: [-3.0, 0.95, 11.7], az: 205, alt: 12, dist: 3.3 });            // el cliente en el banco del parque cuando recibe el aviso
+  M.toma('sigueLucia', { sigue: 'lucia', mira: [0, 0.88, 0], az: -35, alt: 24, dist: 5.0 });   // la cámara camina con ella por la trastienda
   M.entrada = 'pc1';
   M.sombra = { x: 0, z: -1.5, radio: 15 };
 };
@@ -2824,7 +2844,9 @@ SIM.escena = function (K, M) {
 (function () {
   'use strict';
   const AZUL = '#2f63d6', NUEVO = '#0f9a6c', GRIS = '#5b6b86';
-  const VOZ = ['Hola, soy el asistente automático de Farmacia Demo: su encargo ya está en la farmacia.', 'También se lo enviamos por WhatsApp.'];
+  const NUM = '600 98 76 54';   // línea oficial de WhatsApp de la farmacia (número ficticio)
+  const GRABACION = 'Farmacia Demo: su encargo ya ha llegado. Pase cuando quiera con su resguardo.';   // lo que dice la nota de voz: una grabación de la farmacia, no una voz de IA
+  const NOTA = { audio: '0:09', hora: '13:31' };
   const MSG = 'Hola, Sr. Ramírez: su encargo (Colirio Hidrafresh 10 ml) ya está en Farmacia Demo. Puede recogerlo hoy hasta las 21:00.';
   const ESTADOS = ['Por pedir', 'Pedido', 'Llegó', 'Avisado', 'Recogido'];
   const TONO_ESTADO = { 'Por pedir': 'ambar', Pedido: 'azul', 'Llegó': 'verde', Avisado: 'verde', Recogido: 'gris' };
@@ -2867,7 +2889,8 @@ SIM.escena = function (K, M) {
       { tipo: 'llamada', numero: '600 12 34 56', estado: 'Sin respuesta · otro intento a las 13:50', tono: 'rojo' }] },
     // Mejorado (sin tocar el programa de la farmacia)
     'resguardo': { marco: 'papel', titulo: 'RESGUARDO', bloques: [
-      { tipo: 'lineas', items: ['Código: E-0427', 'Sr. Ramírez', 'Colirio', 'Hidrafresh 10 ml', '25/10 · 10:18', 'Aviso: WhatsApp'] }] },
+      { tipo: 'lineas', ajustar: true, items: ['Código: E-0427', 'Sr. Ramírez', 'Colirio Hidrafresh', '25/10 · 10:18', 'WhatsApp ' + NUM] },
+      { tipo: 'texto', tam: 4.3, max: 4, texto: 'Solo le escribiremos desde este número, la línea oficial de la farmacia. Guárdelo.' }] },
     'formulario': { app: 'Encargos · formulario único', titulo: 'Nuevo encargo', color: NUEVO, bloques: [
       { tipo: 'campos', filas: [['Cliente', 'Sr. Ramírez'], ['Teléfono', '600 12 34 56'], ['Producto', 'Colirio Hidrafresh 10 ml'], ['Almacén', 'B · 4,10 €']] },
       { tipo: 'botones', items: ['Guardar encargo', 'Imprimir resguardo'], color: NUEVO }] },
@@ -2888,7 +2911,7 @@ SIM.escena = function (K, M) {
       { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Marca'], anchos: [0.62, 0.14, 0.24], resaltar: 0, filas: [
         ['Colirio Hidrafresh 10 ml', '1', { t: 'E', tono: 'rojo' }], ['Crema Dermaplus 200 ml', '1', { t: 'E', tono: 'rojo' }], ['Paracetamol 1 g', '12', '']] },
       { tipo: 'aviso', texto: 'En la lista: es de Ramírez → se marca «Llegó»', tono: 'verde' }] },
-    'whatsapp': { marco: 'movil', app: 'Farmacia Demo', titulo: 'mensaje automático', bloques: [{ tipo: 'chat', mensajes: [{ texto: MSG, hora: '13:31' }] }] },
+    'whatsapp': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [{ texto: MSG, hora: '13:31' }] }] },
     // Óptimo (conectado al programa y a los almacenes)
     'stock-comparador': { app: 'Programa de gestión + conector', titulo: 'Colirio Hidrafresh 10 ml', color: AZUL, bloques: [
       { tipo: 'campos', filas: [['Stock', '0 unidades', 'rojo'], ['PVP', '7,95 €']] },
@@ -2913,8 +2936,9 @@ SIM.escena = function (K, M) {
       { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Encargo de'], anchos: [0.56, 0.14, 0.3], resaltar: 0, filas: [
         ['Colirio Hidrafresh 10 ml', '1', { t: 'Ramírez', tono: 'verde' }], ['Crema Dermaplus 200 ml', '1', { t: 'Gómez', tono: 'verde' }], ['Paracetamol 1 g', '12', '']] },
       { tipo: 'aviso', texto: 'Aparta en la cesta: «Encargo de Ramírez»', tono: 'verde' }] },
-    'whatsapp-rec': { marco: 'movil', app: 'Farmacia Demo', titulo: 'mensaje automático', bloques: [{ tipo: 'chat', mensajes: [
-      { texto: MSG, hora: '13:31' }, { texto: 'Recordatorio: su encargo sigue esperándole en Farmacia Demo.', hora: 'a los 3 días' }] }] },
+    'whatsapp-voz': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [{ texto: MSG, hora: '13:31' }, NOTA] }] },
+    'whatsapp-rec': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [
+      { texto: MSG, hora: '13:31' }, NOTA, { texto: 'Recordatorio: su encargo sigue esperándole en Farmacia Demo.', hora: 'a los 3 días' }] }] },
     'llamada-ia': { app: 'Asistente de voz con IA', titulo: 'Llamada automática al cliente', color: NUEVO, bloques: [
       { tipo: 'llamada', numero: '600 12 34 56', estado: 'Contestada · aviso dado en 20 s', tono: 'verde' },
       { tipo: 'aviso', texto: 'A la vez sale el WhatsApp; si no contesta, deja el aviso en el buzón', tono: 'verde' }] },
@@ -2922,30 +2946,28 @@ SIM.escena = function (K, M) {
     'movil-bloqueado': { marco: 'bloqueo', titulo: '10:15', bloques: [] },
     'movil-sonando': { marco: 'bloqueo', titulo: '13:35', bloques: [{ texto: 'Llamada entrante: Farmacia Demo', tono: 'verde' }] },
     'movil-perdida': { marco: 'bloqueo', titulo: '13:37', bloques: [{ texto: 'Llamada perdida: Farmacia Demo', tono: 'rojo' }] },
-    'movil-ia': { marco: 'bloqueo', titulo: '13:31', bloques: [{ texto: 'Llamada entrante: Farmacia Demo · asistente de voz', tono: 'verde' }] },
   };
 
   // ---------- Trozos de guion que se repiten ----------
-  // Paso 1: el cliente entra y pide el colirio.
+  // Paso 1: el cliente entra y pide el colirio. Una sola toma, por encima del hombro de Lucía: se le ve entrar, llegar al mostrador y pedir.
   const pide = (pantalla, frase) => [
-    [0, 'toma', 'calle'], [0, 'ir', 'ramirez', 'mostrador.cliente1'],
-    [2.6, 'toma', 'entrada'], [5.0, 'toma', 'mostrador'],
+    [0, 'toma', 'hombro'], [0, 'ir', 'ramirez', 'mostrador.cliente1'],
     [6.4, 'hacer', 'ramirez', 'hablar'], [6.5, 'decir', 'ramirez', '¿Tienen colirio Hidrafresh?', 2.4],
     [7.4, 'hacer', 'lucia', 'teclear'], [7.6, 'pantalla', 'pc1', pantalla], [8.6, 'hacer', 'ramirez', 'libre'],
     [8.9, 'decir', 'lucia', frase, 2.2],
   ];
   // Paso 2 de Actual y Mejorado: las tres webs.
   const webs = [
-    [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'], [0.3, 'pantalla', 'pc1', 'webs'],
+    [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.3, 'pantalla', 'pc1', 'webs'],
     [1.0, 'decir', 'lucia', 'Almacén A: no lo tiene…', 2.0], [3.2, 'decir', 'lucia', 'B sí: 4,10 €', 2.0], [5.4, 'decir', 'lucia', 'C: desabastecido', 1.8],
-    [7.2, 'toma', 'mostrador'], [7.2, 'hacer', 'lucia', 'hablar'], [7.3, 'decir', 'lucia', 'Se lo pido al B.', 1.6], [8.8, 'hacer', 'lucia', 'libre'],
+    [7.2, 'hacer', 'lucia', 'hablar'], [7.3, 'decir', 'lucia', 'Se lo pido al B.', 1.6], [8.8, 'hacer', 'lucia', 'libre'],
   ];
   // Llega el repartidor con las cubetas (13:30).
   const reparto = [
     [0, 'poner', 'lucia', 'recepcion.tec'], [0, 'hacer', 'lucia', 'libre'], [0, 'pantalla', 'pcRecepcion', 'escritorio-recepcion'],
     [0, 'toma', 'reparto'], [0, 'agarrar', 'repartidor', 'cubetas', 'pecho'], [0, 'hacer', 'repartidor', 'llevar'], [0.2, 'ir', 'repartidor', 'recepcion.rep'],
     [3.3, 'decir', 'repartidor', '¡Pedido del almacén B!', 2], [4.0, 'mover', 'cubetas', 'mesa.cubetas', 0.7], [4.2, 'hacer', 'repartidor', 'libre'],
-    [5.0, 'toma', 'recepcion'], [5.4, 'ir', 'repartidor', 'callejon'],
+    [5.4, 'ir', 'repartidor', 'callejon'],
     [5.5, 'agarrar', 'lucia', 'escaner', 'D'], [5.6, 'agarrar', 'lucia', 'colirio', 'I'], [5.7, 'hacer', 'lucia', 'escanear'],
     [5.9, 'efecto', 'escaner', 'laser', true], [6.5, 'efecto', 'escaner', 'laser', false],
   ];
@@ -2971,6 +2993,7 @@ SIM.escena = function (K, M) {
     telefono: { id: 'telefono', nombre: 'Teléfono', tipo: 'telefono', pantalla: 'llamada', nota: 'Se busca el teléfono en el papelito y se llama; a menudo no contesta.' },
   };
   const mod = (base, extra) => Object.assign({}, base, extra);
+  const SIEMPRE = 'Se hace siempre, en los tres escenarios (supuesto, sin confirmar con la farmacia): Lucía atiende el encargo en el mostrador, el cliente se lleva un resguardo con el código, el pedido llega del almacén con el repartidor y el producto se entrega en el mostrador con el resguardo.';
 
   SIM.guion = {
     id: 'f1-encargos', caso: 'F1', titulo: 'Encargos con seguimiento y aviso al cliente', trabajadora: 'lucia', negocio: 'Farmacia Demo',
@@ -2982,9 +3005,31 @@ SIM.escena = function (K, M) {
       volumen: { etiqueta: 'Encargos al día', valor: 10, periodo: 'dia' },
       dias: { etiqueta: 'Días de trabajo al mes', valor: 24 },
       coste: { etiqueta: 'Coste de una técnica (€/hora)', valor: 16 },
-      errores: { etiqueta: 'Encargos olvidados o perdidos (%)', valores: { actual: 3, mejorado: 1, optimo: 0.2 } },
+      errores: { etiqueta: 'Encargos olvidados o perdidos (%)', valores: { actual: 3, mejorado: 1, optimo: 0 } },
     },
-    formulas: 'Horas al mes = encargos al día × días × minutos por encargo ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Encargos perdidos al mes = encargos al mes × %.',
+    formulas: 'Horas al mes = encargos al día × días × minutos por encargo ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Encargos perdidos al mes = encargos al mes × %. ' + SIEMPRE,
+    preguntasTitulo: 'Preguntas para la farmacia',
+    intro: 'Las cifras de esta simulación son estimadas. Con vuestras respuestas las ponemos reales y corregimos lo que no sea así.',
+    preguntas: [
+      { titulo: 'Volumen y tiempo', items: [
+        '¿Cuántos encargos hacéis al día de media? ¿Hay días o temporadas con muchos más?',
+        '¿Cuánto se tarda en total por encargo entre apuntarlo, pedirlo, encontrarlo al llegar y avisar al cliente?',
+        '¿Quién lo hace (farmacéutica, técnica, auxiliar) y cuánto cuesta su hora?',
+        '¿Cuántos encargos al mes se pierden, se olvidan o se piden dos veces?',
+        '¿Cuántos clientes no vienen a recogerlo? ¿Qué hacéis con el producto?'] },
+      { titulo: 'Cómo lo hacéis hoy', items: [
+        '¿Dónde apuntáis el encargo: en el programa, en papel o en los dos?',
+        '¿Qué programa de gestión usáis y quién os da soporte? ¿Deja exportar datos o conectarse?',
+        '¿Con cuántos almacenes trabajáis y cuántos pedidos os llegan al día?',
+        'Al recibir el pedido, ¿cómo sabéis qué producto es de un encargo?'] },
+      { titulo: 'El aviso al cliente', items: [
+        '¿Cómo avisáis hoy (llamada, WhatsApp, SMS) y desde qué teléfono? ¿Tenéis WhatsApp Business o un móvil de la farmacia?',
+        '¿Cuántas veces hay que volver a llamar porque no contesta?',
+        '¿Cuántos de vuestros clientes son mayores o extranjeros? ¿En qué idiomas os vendría bien avisar?',
+        '¿Os basta un WhatsApp con texto y nota de voz, o queréis también una llamada automática con voz de IA (tiene coste extra y el cliente firma que la acepta)?',
+        '¿Os parece bien que el mensaje diga solo el código del encargo, sin el nombre del medicamento?'] },
+      { titulo: 'Lo más importante', items: ['¿Qué no es así en vuestra farmacia?'] },
+    ],
     textoPantalla: 'Cómo se vería en el ordenador de la farmacia',
     notaDatos: 'Simulación con datos ficticios · cifras estimadas',
     pantallas,
@@ -3009,7 +3054,7 @@ SIM.escena = function (K, M) {
     escenarios: [
       // ===================== ACTUAL =====================
       { id: 'actual', nombre: 'Actual', lema: 'así se hace hoy', color: '#f2685a',
-        cierre: 'Hoy cada encargo pasa por papel, se teclea dos veces y se avisa llamando: 9 minutos por encargo y algunos se pierden por el camino.',
+        cierre: 'Hoy cada encargo pasa por papel, se teclea dos veces y se avisa llamando: 9 minutos por encargo y algunos se pierden por el camino. ' + SIEMPRE,
         modulos: [mod(M.stock, { col: 0, fila: 0 }), mod(M.webs, { col: 1, fila: 0 }), mod(M.ventanita, { col: 2, fila: 0 }), mod(M.papelito, { col: 3, fila: 0 }),
           mod(M.pedido, { col: 3, fila: 1 }), mod(M.recepcion, { col: 2, fila: 1 }), mod(M.telefono, { col: 1, fila: 1 })],
         tubos: [['stock', 'webs'], ['webs', 'ventanita'], ['ventanita', 'papelito'], ['papelito', 'pedido'], ['pedido', 'recepcion'], ['recepcion', 'telefono']],
@@ -3027,15 +3072,14 @@ SIM.escena = function (K, M) {
             haciendo: { lucia: 'Imprime el resguardo, se lo da al cliente y clava la copia de la farmacia en el tablón.', ramirez: 'Recibe su resguardo (E-0427) y se va a esperar la llamada.' },
             monitor: { ruta: ['webs', 'ventanita', 'papelito'], manual: ['ventanita', 'papelito'] },
             acciones: [
-              [0, 'toma', 'mostrador'], [0, 'hacer', 'lucia', 'teclear'], [0.2, 'pantalla', 'pc1', 'ventanita'], [0.6, 'decir', 'lucia', '¿Me da un teléfono?', 1.8],
+              [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.2, 'pantalla', 'pc1', 'ventanita'], [0.6, 'decir', 'lucia', '¿Me da un teléfono?', 1.8],
               [2.2, 'hacer', 'ramirez', 'hablar'], [2.3, 'decir', 'ramirez', '600 12 34 56', 1.8], [3.6, 'hacer', 'ramirez', 'libre'],
-              [3.7, 'toma', 'entrega'], [3.8, 'mostrar', 'resguardo1'], [3.8, 'mover', 'resguardo1', 'impresora.salida', 0.9],
+              [3.8, 'mostrar', 'resguardo1'], [3.8, 'mover', 'resguardo1', 'impresora.salida', 0.9],
               [4.1, 'mostrar', 'papelito1'], [4.1, 'mover', 'papelito1', 'impresora.salida2', 0.9], [4.5, 'marca', 'dolor', 'papelito1', 'Copia en papel', 2.6],
               [5.0, 'hacer', 'lucia', 'coger'], [5.4, 'agarrar', 'lucia', 'papelito1', 'D'], [5.5, 'agarrar', 'lucia', 'resguardo1', 'I'], [5.7, 'hacer', 'lucia', 'hablar'],
               [5.8, 'decir', 'lucia', 'Su resguardo: E-0427.', 1.8], [6.0, 'hacer', 'ramirez', 'coger'], [6.2, 'agarrar', 'ramirez', 'resguardo1', 'D'],
               [6.4, 'hacer', 'lucia', 'libre'], [6.7, 'hacer', 'ramirez', 'libre'],
-              [6.8, 'decir', 'ramirez', 'Gracias, espero su llamada.', 2.2], [7.4, 'ir', 'lucia', 'tablon'], [7.8, 'ir', 'ramirez', 'banco'],
-              [8.2, 'toma', 'sigueLucia'], [11.8, 'toma', 'tablon'],
+              [6.8, 'decir', 'ramirez', 'Gracias, espero su llamada.', 2.2], [7.4, 'ir', 'lucia', 'tablon'], [7.4, 'toma', 'sigueLucia'], [7.8, 'ir', 'ramirez', 'banco'],
               [13.2, 'hacer', 'lucia', 'colocar'], [13.5, 'dejar', 'papelito1', 'tablon.p1'], [13.7, 'marca', 'dolor', 'tablon.p1', 'Un papel más en el tablón'], [14.2, 'hacer', 'lucia', 'libre'],
             ] },
           { titulo: 'Lo vuelve a meter en el pedido', quien: 'Lucía', donde: 'Ordenador de la trastienda', min: 1, modo: 'manual', hora: '10:55', dur: 11, foto: 0.7,
@@ -3043,10 +3087,10 @@ SIM.escena = function (K, M) {
             haciendo: { lucia: 'Teclea otra vez lo que ya escribió en la ventanita.', ramirez: 'Espera la llamada; sigue con su día.' },
             monitor: { ruta: ['papelito', 'pedido'] },
             acciones: enElBanco(true).concat([
-              [0, 'poner', 'lucia', 'tablon'], [0, 'toma', 'tablon'], [0.4, 'hacer', 'lucia', 'buscar'], [1.5, 'hacer', 'lucia', 'coger'],
+              [0, 'poner', 'lucia', 'tablon'], [0, 'toma', 'sigueLucia'], [0.4, 'hacer', 'lucia', 'buscar'], [1.5, 'hacer', 'lucia', 'coger'],
               [1.8, 'agarrar', 'lucia', 'papelito1', 'I'], [2.1, 'hacer', 'lucia', 'libre'], [2.2, 'ir', 'lucia', 'recepcion.tec'],
-              [3.1, 'toma', 'pantallaRecepcion'], [3.6, 'hacer', 'lucia', 'teclear'], [3.8, 'pantalla', 'pcRecepcion', 'pedido'],
-              [4.4, 'marca', 'dolor', 'lucia', 'Doble captura', 6.6], [7.0, 'toma', 'tablon'], [7.4, 'marca', 'dolor', 'papelito4', 'A veces se olvida'],
+              [3.6, 'hacer', 'lucia', 'teclear'], [3.8, 'pantalla', 'pcRecepcion', 'pedido'],
+              [4.4, 'marca', 'dolor', 'lucia', 'Doble captura', 6.6], [7.2, 'marca', 'dolor', 'lucia', 'A veces se olvida'],
             ]) },
           { titulo: 'Llega el pedido: ¿de quién es la «E»?', quien: 'Lucía y el repartidor', donde: 'Trastienda', min: 1.5, modo: 'manual', hora: '13:30', dur: 15, foto: 0.78,
             texto: 'A las 13:30 llegan las cubetas; al escanear sale la «E» de encargo y Lucía busca entre los papelitos del tablón.', dolores: ['Papelito perdido'], estado: 'Llegó · buscando el papelito', tonoEstado: 'dolor', personas: ['lucia', 'repartidor'],
@@ -3055,7 +3099,7 @@ SIM.escena = function (K, M) {
             acciones: reparto.concat([
               [6.5, 'pantalla', 'pcRecepcion', 'recepcion'], [7.0, 'decir', 'lucia', '¿De quién es esta «E»?', 2.2],
               [7.6, 'dejar', 'escaner', 'escaner.base'], [7.6, 'dejar', 'colirio', 'mesa.colirio'], [7.6, 'hacer', 'lucia', 'libre'],
-              [8.2, 'ir', 'lucia', 'tablon'], [9.0, 'toma', 'tablon'], [9.8, 'hacer', 'lucia', 'buscar'],
+              [8.2, 'ir', 'lucia', 'tablon'], [8.2, 'toma', 'sigueLucia'], [9.8, 'hacer', 'lucia', 'buscar'],
               [10.6, 'mover', 'papelito3', 'suelo.p3', 0.9, 'caer'], [11.3, 'marca', 'dolor', 'papelito3', 'Papelito perdido'],
               [12.6, 'decir', 'lucia', 'Aquí está: Ramírez.', 1.8], [12.8, 'hacer', 'lucia', 'coger'], [13.1, 'agarrar', 'lucia', 'papelito1', 'D'], [13.5, 'hacer', 'lucia', 'libre'],
             ]) },
@@ -3065,22 +3109,22 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['recepcion', 'telefono'] },
             acciones: [
               [0, 'poner', 'lucia', 'tablon'], [0, 'toma', 'telefono'], [0.2, 'ir', 'lucia', 'telefono'], [1.4, 'agarrar', 'lucia', 'auricular', 'D'], [1.5, 'hacer', 'lucia', 'telefono'],
-              [2.0, 'decir', 'lucia', 'Llamando al 600 12 34 56…', 2.0],
-              [3.4, 'toma', 'banco'], [3.4, 'pantalla', 'movilR', 'movil-sonando'], [3.5, 'efecto', 'movilRamirez', 'sonar', true], [4.3, 'marca', 'dolor', 'ramirez', 'No lo oye', 3.2],
-              [7.4, 'efecto', 'movilRamirez', 'sonar', false], [7.4, 'pantalla', 'movilR', 'movil-perdida'],
-              [7.6, 'toma', 'telefono'], [8.0, 'decir', 'lucia', 'No contesta… Lo intento luego.', 2.4], [9.6, 'marca', 'dolor', 'lucia', 'Otra llamada más tarde'],
+              [1.7, 'decir', 'lucia', 'Llamando al 600 12 34 56…', 2.0],
+              // Corte al banco (aviso al cliente): allí se ve que no oye el móvil y que la farmacia tendrá que volver a llamar.
+              [3.8, 'toma', 'banco'], [3.8, 'pantalla', 'movilR', 'movil-sonando'], [3.9, 'efecto', 'movilRamirez', 'sonar', true], [4.7, 'marca', 'dolor', 'ramirez', 'No lo oye', 3.2],
+              [7.8, 'efecto', 'movilRamirez', 'sonar', false], [7.8, 'pantalla', 'movilR', 'movil-perdida'], [8.6, 'marca', 'dolor', 'movilRamirez', 'Otra llamada más tarde'],
               [10.8, 'hacer', 'lucia', 'libre'], [10.9, 'dejar', 'auricular', 'telefono.base'],
             ] },
         ] },
       // ===================== MEJORADO =====================
       { id: 'mejorado', nombre: 'Mejorado', lema: 'sin tocar el programa', color: '#f2a516',
-        cierre: 'Un formulario y una lista con estados quitan la doble captura y la búsqueda en el tablón; el cliente se lleva su resguardo y el aviso sale solo por WhatsApp.',
+        cierre: 'Un formulario y una lista con estados quitan la doble captura y la búsqueda en el tablón; el cliente se lleva su resguardo y el aviso sale solo por WhatsApp. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'papelito2'], [0, 'ocultar', 'papelito3'], [0, 'ocultar', 'papelito4']],
         modulos: [mod(M.stock, { col: 0, fila: 0 }), mod(M.webs, { col: 1, fila: 0 }),
           { id: 'formulario', nombre: 'Formulario único', tipo: 'pantalla', pantalla: 'formulario', col: 2, fila: 0, nuevo: true,
             nota: 'Cliente, teléfono y producto se escriben una sola vez; el encargo entra solo en la lista como «Por pedir».',
             construir: 'Formulario web sencillo (por ejemplo, Google Forms o una página propia) que guarda en una hoja.' },
-          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'Imprime el resguardo con el código para recogerlo y Lucía se lo da al cliente. La farmacia ya no guarda copia: el encargo está en la lista.' }),
+          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'Imprime el resguardo con el código para recogerlo y Lucía se lo da al cliente. Lleva el número de WhatsApp desde el que se avisa. La farmacia ya no guarda copia: el encargo está en la lista.' }),
           { id: 'whatsapp', nombre: 'WhatsApp automático', tipo: 'movil', pantalla: 'whatsapp', col: 0, fila: 1, nuevo: true,
             nota: 'Cuando el encargo pasa a «Llegó», sale solo el WhatsApp al cliente.', construir: 'Automatización que lee la lista y envía la plantilla de WhatsApp.' },
           { id: 'lista', nombre: 'Lista de encargos', tipo: 'pantalla', pantalla: lista('Por pedir'), col: 1, fila: 1, nuevo: true,
@@ -3097,29 +3141,31 @@ SIM.escena = function (K, M) {
             texto: 'Igual que hoy: revisa las webs de los almacenes A, B y C.', estado: 'Buscando almacén', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Entra en tres webs para ver quién tiene el colirio.', ramirez: 'Espera en el mostrador.' },
             monitor: { ruta: ['stock', 'webs'] }, acciones: webs },
-          { titulo: 'Formulario único', quien: 'Lucía', donde: 'Ordenador o tableta', min: 1, modo: 'manual', hora: '10:18', dur: 13, foto: 0.72,
+          { titulo: 'Formulario único', quien: 'Lucía', donde: 'Ordenador o tableta', min: 1, modo: 'manual', hora: '10:18', dur: 18, foto: 0.66,
             texto: 'Cliente, teléfono y producto una sola vez; el encargo entra en la lista digital como «Por pedir» y se imprime el resguardo con su código (E-0427), que Lucía entrega al cliente.', mejoras: ['Una sola captura'], estado: 'Por pedir', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Rellena el formulario una sola vez y le da su resguardo.', ramirez: 'Deja su teléfono para el aviso por WhatsApp y recibe su resguardo.' },
             monitor: { ruta: ['webs', 'formulario', 'lista'], manual: ['formulario', 'papelito'], senales: [['formulario', 'papelito']], pantallas: { lista: lista('Por pedir') } },
             acciones: [
-              [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'], [0.2, 'pantalla', 'pc1', 'formulario'], [0.6, 'decir', 'lucia', '¿Me da un teléfono?', 1.8],
-              [2.2, 'toma', 'mostrador'], [2.3, 'hacer', 'ramirez', 'hablar'], [2.4, 'decir', 'ramirez', '600 12 34 56', 1.8], [3.8, 'hacer', 'ramirez', 'libre'],
-              [4.2, 'toma', 'pantalla1'], [4.6, 'pantalla', 'pc1', lista('Por pedir')], [5.0, 'marca', 'mejora', 'pc1', 'Una sola captura'],
-              [6.4, 'toma', 'entrega'], [6.6, 'mostrar', 'resguardo1'], [6.6, 'mover', 'resguardo1', 'impresora.salida', 0.9],
+              [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.2, 'pantalla', 'pc1', 'formulario'], [0.6, 'decir', 'lucia', '¿Me da un teléfono?', 1.8],
+              [2.3, 'hacer', 'ramirez', 'hablar'], [2.4, 'decir', 'ramirez', '600 12 34 56', 1.8], [3.8, 'hacer', 'ramirez', 'libre'],
+              [4.6, 'pantalla', 'pc1', lista('Por pedir')], [5.0, 'marca', 'mejora', 'pc1', 'Una sola captura'],
+              [6.6, 'mostrar', 'resguardo1'], [6.6, 'mover', 'resguardo1', 'impresora.salida', 0.9],
               [7.4, 'hacer', 'lucia', 'coger'], [7.8, 'agarrar', 'lucia', 'resguardo1', 'D'], [8.0, 'hacer', 'lucia', 'hablar'],
-              [8.1, 'decir', 'lucia', 'Su resguardo: E-0427. Le avisamos por WhatsApp.', 2.6], [8.3, 'mover', 'resguardo1', 'mostrador.entrega', 0.6],
-              [8.6, 'hacer', 'ramirez', 'coger'], [8.9, 'agarrar', 'ramirez', 'resguardo1', 'D'], [9.5, 'hacer', 'ramirez', 'libre'],
-              [10.8, 'decir', 'ramirez', 'Perfecto, gracias.', 1.8], [11.4, 'ir', 'ramirez', 'banco'], [11.6, 'hacer', 'lucia', 'libre'],
+              [8.1, 'decir', 'lucia', 'Su resguardo: E-0427. Le avisamos por WhatsApp.', 2.6], [8.3, 'mover', 'resguardo1', 'mostrador.resguardo', 0.6],
+              // La línea oficial de WhatsApp: bocadillo aparte, cuando acaba el anterior; el resguardo sigue en el mostrador hasta que el cliente lo coge.
+              [10.8, 'decir', 'lucia', 'Le escribiremos solo desde este número. Guárdelo.', 3.0],
+              [13.4, 'hacer', 'ramirez', 'coger'], [13.7, 'agarrar', 'ramirez', 'resguardo1', 'D'], [14.3, 'hacer', 'ramirez', 'libre'],
+              [14.4, 'decir', 'ramirez', 'Perfecto, gracias.', 1.5], [15.9, 'ir', 'ramirez', 'banco'], [16.0, 'hacer', 'lucia', 'libre'],
             ] },
           { titulo: 'Lo pasa al pedido', quien: 'Lucía', donde: 'Ordenador del mostrador', min: 1, modo: 'manual', hora: '10:55', dur: 9, foto: 0.75,
             texto: 'La lista recuerda lo que está «Por pedir» hasta que se marca «Pedido».', mejoras: ['Ningún encargo olvidado'], estado: 'Pedido', tonoEstado: 'mejora', personas: ['lucia'],
             haciendo: { lucia: 'Pasa al pedido lo que la lista marca «Por pedir».', ramirez: 'Sigue con su día; ya sabe que le avisarán.' },
             monitor: { ruta: ['lista', 'pedido'], manual: ['lista', 'pedido'], pantallas: { lista: lista('Pedido') } },
             acciones: enElBanco(false).concat([
-              [0, 'poner', 'lucia', 'mostrador.tec1'], [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'],
+              [0, 'poner', 'lucia', 'mostrador.tec1'], [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'],
               [0.3, 'pantalla', 'pc1', ['lista', { ramirez: 'Por pedir', aviso: 'Pendiente de pedir: Ramírez · colirio', tono: 'ambar' }]],
               [1.4, 'marca', 'mejora', 'pc1', 'La lista lo recuerda', 3], [3.6, 'pantalla', 'pc1', 'pedido-mejorado'],
-              [5.6, 'pantalla', 'pc1', lista('Pedido')], [5.8, 'toma', 'mostrador'], [6.0, 'decir', 'lucia', 'Pedido y marcado en la lista.', 2.2], [6.3, 'marca', 'mejora', 'lucia', 'Ningún encargo olvidado'],
+              [5.6, 'pantalla', 'pc1', lista('Pedido')], [6.0, 'decir', 'lucia', 'Pedido y marcado en la lista.', 2.2], [6.3, 'marca', 'mejora', 'lucia', 'Ningún encargo olvidado'],
             ]) },
           { titulo: 'Llega el pedido', quien: 'Lucía y el repartidor', donde: 'Trastienda', min: 0.3, modo: 'manual', hora: '13:30', dur: 11, foto: 0.74,
             texto: 'Busca en la lista y marca «Llegó»: ya no hay que rebuscar en el tablón.', mejoras: ['Sin rebuscar en el tablón'], estado: 'Llegó', tonoEstado: 'mejora', personas: ['lucia', 'repartidor'],
@@ -3127,8 +3173,8 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['pedido', 'recepcion', 'lista'], manual: ['recepcion', 'lista'], pantallas: { lista: lista('Llegó') } },
             acciones: reparto.concat([
               [6.6, 'pantalla', 'pcRecepcion', ['lista', { ramirez: 'Llegó', aviso: 'Colirio Hidrafresh 10 ml: encargo de Ramírez', tono: 'verde' }]],
-              [6.8, 'toma', 'pantallaRecepcion'], [7.0, 'decir', 'lucia', 'Es de Ramírez: «Llegó».', 2.2], [7.4, 'marca', 'mejora', 'pcRecepcion', 'Sin rebuscar en el tablón'],
-              [8.6, 'dejar', 'escaner', 'escaner.base'], [8.6, 'dejar', 'colirio', 'mesa.colirio'], [8.6, 'hacer', 'lucia', 'libre'], [8.8, 'toma', 'recepcion'],
+              [7.0, 'decir', 'lucia', 'Es de Ramírez: «Llegó».', 2.2], [7.4, 'marca', 'mejora', 'pcRecepcion', 'Sin rebuscar en el tablón'],
+              [8.6, 'dejar', 'escaner', 'escaner.base'], [8.6, 'dejar', 'colirio', 'mesa.colirio'], [8.6, 'hacer', 'lucia', 'libre'],
             ]) },
           { titulo: 'Aviso automático', quien: 'El sistema (Lucía solo revisa)', donde: 'WhatsApp del cliente', min: 0.2, modo: 'auto', hora: '13:31', dur: 10, foto: 0.45,
             texto: 'Sale solo el WhatsApp al cliente. Estados: Por pedir, Pedido, Llegó, Avisado y Recogido.', mejoras: ['Aviso automático'], estado: 'Avisado', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
@@ -3141,18 +3187,18 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== ÓPTIMO =====================
       { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa y a los almacenes', color: '#1fb57a',
-        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo con una llamada de un asistente de voz con IA y un WhatsApp a la vez; al recogerlo basta escanear el código del resguardo.',
+        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo por WhatsApp, con texto y nota de voz, desde la línea oficial de la farmacia; al recogerlo basta escanear el código del resguardo. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'papelito2'], [0, 'ocultar', 'papelito3'], [0, 'ocultar', 'papelito4']],
         modulos: [mod(M.stock, { col: 0, fila: 0, pantalla: 'stock-comparador', nota: 'El programa de siempre, ahora con la disponibilidad de los almacenes en la misma pantalla.' }),
           { id: 'conector', nombre: 'Conector con el programa', tipo: 'nodo', pantalla: 'conector', col: 1, fila: 0, nuevo: true,
-            nota: 'Une el programa de gestión con la lista, los almacenes, WhatsApp y el asistente de voz: lee stock y fichas de clientes.', construir: 'Integración con el programa de gestión (exportación o conexión que ofrezca el proveedor).' },
+            nota: 'Une el programa de gestión con la lista, los almacenes y WhatsApp: lee stock y fichas de clientes.', construir: 'Integración con el programa de gestión (exportación o conexión que ofrezca el proveedor).' },
           { id: 'comparador', nombre: 'Comparador de almacenes', tipo: 'pantalla', pantalla: 'eleccion', col: 2, fila: 0, nuevo: true,
             nota: 'Elige el almacén más barato que lo tiene y avisa al momento si hay desabastecimiento.', construir: 'Consulta de disponibilidad y precio en A, B y C.' },
-          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'El mismo resguardo con código. Al recogerlo se escanea el código y el encargo queda «Recogido» en la lista.' }),
-          { id: 'whatsappRec', nombre: 'WhatsApp con recordatorio', tipo: 'movil', pantalla: 'whatsapp-rec', col: 0, fila: 1, nuevo: true,
-            nota: 'Aviso al llegar (a la vez que la llamada) y recordatorio a los 3 días si no lo recoge; al venderlo queda «Recogido».', construir: 'Plantillas de WhatsApp y una regla de 3 días.' },
-          { id: 'llamadaIA', nombre: 'Llamada con IA de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 1, fila: 2, nuevo: true,
-            nota: 'Al llegar el encargo, un asistente de voz con IA llama al cliente y le da el aviso; a la vez sale el WhatsApp.', construir: 'Agente de voz con IA conectado a la lista: llamada saliente con un guion corto que dice que es un asistente automático.' },
+          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'El mismo resguardo con código y con la línea oficial de WhatsApp de la farmacia. Al recogerlo se escanea el código y el encargo queda «Recogido» en la lista.' }),
+          { id: 'whatsappRec', nombre: 'WhatsApp con nota de voz', tipo: 'movil', pantalla: 'whatsapp-rec', col: 0, fila: 1, nuevo: true,
+            nota: 'Al llegar el encargo sale un WhatsApp con texto y una nota de voz grabada por la farmacia, desde su línea oficial. A los 3 días, un recordatorio si no lo recoge; al venderlo queda «Recogido».', construir: 'Plantillas de WhatsApp (texto y nota de voz grabada) y una regla de 3 días.' },
+          { id: 'llamadaIA', nombre: 'Llamada con IA de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 1, fila: 2, opcional: true,
+            nota: 'Opcional, con coste extra (plataforma de voz): llama al cliente, en su idioma si hace falta, y dice que es un asistente automático. Solo si la farmacia lo elige: el cliente firma que autoriza las llamadas y guarda el contacto oficial.', construir: 'Agente de voz con IA conectado a la lista: llamada saliente con un guion corto que dice que es un asistente automático.' },
           { id: 'lista', nombre: 'Lista de encargos', tipo: 'pantalla', pantalla: lista('Por pedir'), col: 1, fila: 1, nuevo: true,
             nota: 'La misma lista con estados, rellenada sola desde el programa.' },
           { id: 'pedidoAuto', nombre: 'Pedido automático', tipo: 'pantalla', pantalla: 'pedido-auto', col: 2, fila: 1, nuevo: true,
@@ -3171,29 +3217,31 @@ SIM.escena = function (K, M) {
             haciendo: { lucia: 'Encarga con un clic: los datos salen de la ficha.', ramirez: 'Espera unos segundos en el mostrador.' },
             monitor: { ruta: ['stock', 'conector', 'lista'], manual: ['stock'], pantallas: { lista: lista('Por pedir') } },
             acciones: [
-              [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'], [0.6, 'pantalla', 'pc1', 'ficha'], [1.4, 'marca', 'mejora', 'pc1', 'Un clic'],
-              [3.4, 'toma', 'mostrador'], [3.4, 'hacer', 'lucia', 'hablar'], [3.5, 'decir', 'lucia', 'Encargado con los datos de su ficha.', 2.3],
+              [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.6, 'pantalla', 'pc1', 'ficha'], [1.4, 'marca', 'mejora', 'pc1', 'Un clic'],
+              [3.4, 'hacer', 'lucia', 'hablar'], [3.5, 'decir', 'lucia', 'Encargado con los datos de su ficha.', 2.3],
               [5.9, 'hacer', 'ramirez', 'hablar'], [6.0, 'decir', 'ramirez', '¡Qué rápido!', 1.5], [7.4, 'hacer', 'ramirez', 'libre'],
             ] },
-          { titulo: 'Elige el almacén solo', quien: 'El sistema (Lucía confirma)', donde: 'Ordenador del mostrador', min: 0.2, modo: 'manual', hora: '10:17', dur: 12, foto: 0.62,
+          { titulo: 'Elige el almacén solo', quien: 'El sistema (Lucía confirma)', donde: 'Ordenador del mostrador', min: 0.2, modo: 'manual', hora: '10:17', dur: 16, foto: 0.62,
             texto: 'Entra en el siguiente pedido con el almacén más barato que lo tiene; si hubiera desabastecimiento avisaría al momento, con el cliente aún en el mostrador. Sale el resguardo con el código (E-0427).', mejoras: ['Elige el más barato con stock'], estado: 'En el pedido de las 11:00', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
-            haciendo: { lucia: 'Confirma el almacén que propone el sistema y entrega el resguardo.', ramirez: 'Recibe su resguardo y se va tranquilo: le avisarán por teléfono y WhatsApp.' },
+            haciendo: { lucia: 'Confirma el almacén que propone el sistema y entrega el resguardo.', ramirez: 'Recibe su resguardo y se va tranquilo: le avisarán por WhatsApp.' },
             monitor: { ruta: ['lista', 'pedidoAuto'], manual: ['comparador', 'papelito'], senales: [['comparador', 'pedidoAuto'], ['comparador', 'papelito']] },
             acciones: [
-              [0, 'toma', 'pantalla1'], [0, 'hacer', 'lucia', 'teclear'], [0.4, 'pantalla', 'pc1', 'eleccion'], [1.2, 'marca', 'mejora', 'pc1', 'Elige el más barato con stock', 3.6],
-              [3.6, 'toma', 'entrega'], [3.6, 'hacer', 'lucia', 'hablar'], [3.7, 'decir', 'lucia', 'Le llega hoy a mediodía; le avisamos por teléfono y WhatsApp.', 2.8],
+              [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.4, 'pantalla', 'pc1', 'eleccion'], [1.2, 'marca', 'mejora', 'pc1', 'Elige el más barato con stock', 3.6],
+              [3.6, 'hacer', 'lucia', 'hablar'], [3.7, 'decir', 'lucia', 'Le llega hoy a mediodía; le avisamos por WhatsApp.', 2.6],
               [4.0, 'mostrar', 'resguardo1'], [4.0, 'mover', 'resguardo1', 'impresora.salida', 0.9],
               [5.6, 'hacer', 'lucia', 'coger'], [6.0, 'agarrar', 'lucia', 'resguardo1', 'D'], [6.2, 'hacer', 'lucia', 'hablar'],
-              [6.3, 'decir', 'lucia', 'Aquí tiene su resguardo: E-0427.', 2.2], [6.5, 'mover', 'resguardo1', 'mostrador.entrega', 0.6],
-              [6.8, 'hacer', 'ramirez', 'coger'], [7.1, 'agarrar', 'ramirez', 'resguardo1', 'D'], [7.7, 'hacer', 'ramirez', 'libre'],
-              [8.4, 'hacer', 'ramirez', 'hablar'], [8.5, 'decir', 'ramirez', '¡Estupendo, gracias!', 1.6], [9.6, 'hacer', 'ramirez', 'libre'], [9.7, 'ir', 'ramirez', 'banco'], [9.8, 'hacer', 'lucia', 'libre'],
+              [6.3, 'decir', 'lucia', 'Aquí tiene su resguardo: E-0427.', 2.2], [6.5, 'mover', 'resguardo1', 'mostrador.resguardo', 0.6],
+              // La línea oficial de WhatsApp: bocadillo aparte, cuando acaba el anterior; el resguardo sigue en el mostrador hasta que el cliente lo coge.
+              [8.6, 'decir', 'lucia', 'Le escribiremos solo desde este número. Guárdelo.', 3.0],
+              [11.5, 'hacer', 'ramirez', 'coger'], [11.8, 'agarrar', 'ramirez', 'resguardo1', 'D'], [12.4, 'hacer', 'ramirez', 'libre'],
+              [12.5, 'decir', 'ramirez', '¡Estupendo, gracias!', 1.5], [14.0, 'ir', 'ramirez', 'banco'], [14.1, 'hacer', 'lucia', 'libre'],
             ] },
           { titulo: 'Pedido lanzado a las 11:00', quien: 'Automático', donde: 'Programa y almacén B', min: 0, modo: 'auto', hora: '11:00', dur: 8, foto: 0.45,
             texto: 'El pedido sale solo a las 11:00 con el encargo dentro. Lucía no hace nada: atiende y repone.', mejoras: ['Automático: 0 minutos'], estado: 'Pedido', tonoEstado: 'mejora', personas: ['lucia'],
             haciendo: { lucia: 'Repone baldas mientras el pedido sale solo.', ramirez: 'Sigue con su día.' },
             monitor: { ruta: ['pedidoAuto'], senales: [['comparador', 'pedidoAuto'], ['lista', 'pedidoAuto']], pantallas: { lista: lista('Pedido') } },
             acciones: enElBanco(false).concat([
-              [0, 'poner', 'lucia', 'estanteria'], [0, 'hacer', 'lucia', 'colocar'], [0, 'pantalla', 'pc1', 'pedido-auto'], [0, 'toma', 'pantalla1'],
+              [0, 'poner', 'lucia', 'estanteria'], [0, 'hacer', 'lucia', 'colocar'], [0, 'pantalla', 'pc1', 'pedido-auto'], [0, 'toma', 'mostradorL'],
               [0.8, 'marca', 'mejora', 'pc1', 'Enviado solo a las 11:00', 3.6], [4.2, 'toma', 'estanteria'], [4.6, 'decir', 'lucia', 'Mientras, repongo las baldas.', 2.2],
             ]) },
           { titulo: 'Recepción', quien: 'Lucía y el repartidor', donde: 'Trastienda', min: 0.1, modo: 'auto', hora: '13:30', dur: 11, foto: 0.68,
@@ -3201,26 +3249,28 @@ SIM.escena = function (K, M) {
             haciendo: { lucia: 'Cierra la recepción y aparta el colirio en la cesta.', repartidor: 'Deja las cubetas del almacén B.', ramirez: 'Descansa en un banco.' },
             monitor: { ruta: ['pedidoAuto', 'detector', 'lista'], pantallas: { lista: lista('Llegó') } },
             acciones: reparto.concat([
-              [6.4, 'pantalla', 'pcRecepcion', 'detector'], [6.5, 'toma', 'pantallaRecepcion'], [6.8, 'marca', 'mejora', 'pcRecepcion', 'Detecta el encargo solo'],
-              [7.7, 'toma', 'recepcion'], [7.8, 'dejar', 'escaner', 'escaner.base'], [7.8, 'hacer', 'lucia', 'libre'],
+              [6.4, 'pantalla', 'pcRecepcion', 'detector'], [6.8, 'marca', 'mejora', 'pcRecepcion', 'Detecta el encargo solo'],
+              [7.8, 'dejar', 'escaner', 'escaner.base'], [7.8, 'hacer', 'lucia', 'libre'],
               [8.4, 'mover', 'colirio', 'cesta.dentro', 0.9], [8.6, 'decir', 'lucia', 'Apartado: «Encargo de Ramírez».', 2.2],
             ]) },
-          { titulo: 'Llamada, WhatsApp y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'Teléfono, WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 23.5, foto: 0.15,
-            texto: 'Al llegar, un asistente de voz con IA llama al cliente y, a la vez, sale el WhatsApp; recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Llamada con IA y WhatsApp a la vez', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
-            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Contesta la llamada del asistente, ve el WhatsApp y pasa a recogerlo con su resguardo.' },
-            monitor: { ruta: ['lista', 'llamadaIA'], senales: [['lista', 'llamadaIA'], ['lista', 'whatsappRec']], pantallas: { lista: lista('Recogido') } },
+          { titulo: 'Aviso por WhatsApp y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 23.5, foto: 0.36,
+            texto: 'Al llegar, sale un WhatsApp con texto y nota de voz desde la línea oficial de la farmacia; recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Texto y nota de voz', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
+            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Recibe el WhatsApp, escucha la nota de voz y pasa a recogerlo con su resguardo.' },
+            monitor: { ruta: ['lista', 'whatsappRec'], senales: [['lista', 'whatsappRec']], pantallas: { lista: lista('Recogido') } },
             acciones: [
-              // Llama el asistente de voz y, a la vez, llega el WhatsApp.
-              [0, 'toma', 'banco'], [0.4, 'pantalla', 'movilR', 'movil-ia'], [0.4, 'efecto', 'movilRamirez', 'sonar', true], [0.5, 'marca', 'mejora', 'ramirez', 'Llamada con IA de voz', 1.5], [1.3, 'efecto', 'movilRamirez', 'sonar', false],
-              [1.4, 'hacer', 'ramirez', 'coger'], [1.7, 'agarrar', 'ramirez', 'movilRamirez', 'D'], [1.9, 'hacer', 'ramirez', 'telefono'],
-              [2.1, 'decir', 'movilRamirez', VOZ[0], 2.8], [5.0, 'decir', 'movilRamirez', VOZ[1], 2.2], [7.4, 'decir', 'ramirez', 'Perfecto, gracias.', 1.3],
-              [8.8, 'hacer', 'ramirez', 'movil'], [8.8, 'pantalla', 'movilR', 'whatsapp'], [9.0, 'mensaje', 'movilRamirez', MSG, 3.8], [9.2, 'marca', 'mejora', 'ramirez', 'Y a la vez, WhatsApp', 3.4],
-              [12.9, 'pantalla', 'movilR', 'whatsapp-rec'], [13.1, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días'], [14.0, 'decir', 'ramirez', 'Paso esta tarde.', 2],
+              // El cliente espera en el banco: llega el WhatsApp con el texto y, debajo, una nota de voz grabada por la farmacia.
+              [0, 'toma', 'banco'], [0.4, 'pantalla', 'movilR', 'whatsapp-voz'], [0.4, 'efecto', 'movilRamirez', 'sonar', true], [1.2, 'efecto', 'movilRamirez', 'sonar', false],
+              [1.4, 'hacer', 'ramirez', 'coger'], [1.7, 'agarrar', 'ramirez', 'movilRamirez', 'D'], [1.9, 'hacer', 'ramirez', 'movil'],
+              [2.1, 'mensaje', 'movilRamirez', MSG, 3.5], [2.4, 'marca', 'mejora', 'ramirez', 'WhatsApp con texto y nota de voz', 3.2],
+              // Pulsa la nota y se acerca el móvil a la oreja: suena la grabación que hizo la farmacia.
+              [5.8, 'hacer', 'ramirez', 'telefono'], [6.0, 'decir', 'movilRamirez', GRABACION, 4.6], [6.2, 'marca', 'mejora', [-3.45, 1.35, 11.5], 'Grabación de la farmacia', 4.2],
+              [10.8, 'hacer', 'ramirez', 'movil'], [10.9, 'decir', 'ramirez', 'Perfecto, gracias.', 1.5],
+              [12.9, 'pantalla', 'movilR', 'whatsapp-rec'], [13.1, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días', 2.6], [14.0, 'decir', 'ramirez', 'Paso esta tarde.', 2],
               // Por la tarde vuelve con su resguardo: se escanea el código y queda «Recogido».
               [16.0, 'rotulo', 'Por la tarde', 'El Sr. Ramírez vuelve a recoger su encargo'],
-              [16.4, 'toma', 'entrega'], [16.4, 'dejar', 'movilRamirez', 'banco.movil'], [16.4, 'pantalla', 'movilR', 'movil-bloqueado'],
+              [16.4, 'toma', 'mostradorL'], [16.4, 'dejar', 'movilRamirez', 'banco.movil'], [16.4, 'pantalla', 'movilR', 'movil-bloqueado'],
               [16.4, 'poner', 'lucia', 'mostrador.tec1'], [16.4, 'hacer', 'lucia', 'libre'], [16.4, 'poner', 'ramirez', 'mostrador.cliente1'], [16.4, 'hacer', 'ramirez', 'libre'],
-              [16.4, 'agarrar', 'ramirez', 'resguardo1', 'D'], [16.8, 'hacer', 'ramirez', 'coger'], [17.1, 'mover', 'resguardo1', 'mostrador.entrega', 0.7],
+              [16.4, 'agarrar', 'ramirez', 'resguardo1', 'D'], [16.8, 'hacer', 'ramirez', 'coger'], [17.1, 'mover', 'resguardo1', 'mostrador.resguardo', 0.7],
               [17.6, 'hacer', 'ramirez', 'hablar'], [17.7, 'decir', 'ramirez', 'Mi encargo, código E-0427.', 2.4], [18.6, 'hacer', 'ramirez', 'libre'],
               [18.4, 'agarrar', 'lucia', 'escaner', 'D'], [18.6, 'hacer', 'lucia', 'escanear'], [18.8, 'efecto', 'escaner', 'laser', true], [19.4, 'efecto', 'escaner', 'laser', false],
               [19.5, 'pantalla', 'pc1', lista('Recogido')], [19.8, 'marca', 'mejora', 'pc1', 'Recogido con un escaneo', 3],

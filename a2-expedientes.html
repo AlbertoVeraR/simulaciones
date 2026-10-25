@@ -953,7 +953,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
 // Formato: { marco: 'ventana' | 'movil' | 'papel' | 'llamada', app, titulo, color, bloques: [...] }
 // Bloques: campos { filas: [[etiqueta, valor, tono]] } · tabla { columnas, filas, resaltar, anchos } · aviso { texto, tono }
 //          botones { items, principal } · estados { items, actual } · chat { contacto, mensajes: [{ texto, hora, de }] }
-//          lineas { items } · texto { texto } · llamada { numero, estado }
+//          (un mensaje con audio: '0:09' es una nota de voz: botón ▶, onda y duración)
+//          lineas { items, ajustar } · texto { texto, tam, max } · llamada { numero, estado }
 // Una celda de tabla puede ser texto o { t: 'texto', tono }. Tonos: rojo, verde, ambar, azul, gris.
 (function (g) {
   'use strict';
@@ -965,6 +966,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
   const ICONO = { rojo: '⚠ ', ambar: '⚠ ', verde: '✓ ' };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const celda = x => (x && typeof x === 'object') ? x : { t: x };
+  const ONDA = [0.35, 0.6, 0.9, 0.5, 0.75, 0.4, 0.95, 0.65, 0.3, 0.8, 0.55, 0.9, 0.45, 0.7, 0.35, 0.85, 0.5, 0.6, 0.3, 0.45];   // alturas de la onda de una nota de voz
 
   // Busca la descripción de una pantalla en el guion. id puede ser 'nombre' o ['nombre', parámetro].
   function resolver(id, param) {
@@ -1042,6 +1044,17 @@ canvas.lienzo3d:active { cursor: grabbing; }
     },
     chat(c, b, x, y, w, u) {
       (b.mensajes || []).forEach(m => {
+        if (m.audio) {   // nota de voz: botón ▶, onda y duración
+          const yo = m.de === 'yo', bw = w * 0.78, bx = yo ? x + w - bw : x, h = 12 * u, cy = y + 4.9 * u;
+          c.fillStyle = yo ? '#dcf8c6' : '#ffffff'; K.rr(c, bx, y, bw, h, 2.5 * u); c.fill();
+          c.fillStyle = '#128c7e'; c.beginPath(); c.arc(bx + 5.8 * u, cy, 3.7 * u, 0, 7); c.fill();
+          c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(bx + 4.8 * u, cy - 1.9 * u); c.lineTo(bx + 4.8 * u, cy + 1.9 * u); c.lineTo(bx + 7.6 * u, cy); c.closePath(); c.fill();
+          const x0 = bx + 11.5 * u, paso = (bw - 14.5 * u) / ONDA.length;
+          ONDA.forEach((a, i) => { c.fillStyle = i < 7 ? '#128c7e' : '#b3bcc7'; c.fillRect(x0 + i * paso, cy - a * 2.7 * u, Math.max(1, paso * 0.55), a * 5.4 * u); });
+          fuente(c, 500, 3.8 * u); c.fillStyle = '#8a95a8'; c.fillText(m.audio, x0, y + h - 2.3 * u);
+          if (m.hora) c.fillText(m.hora, bx + bw - 11 * u, y + h - 2.3 * u);
+          y += h + 2.5 * u; return;
+        }
         fuente(c, 500, 5.3 * u);
         const ls = lineasDe(c, m.texto, w * 0.72), h = 4 * u + ls.length * 6.4 * u, yo = m.de === 'yo', bw = w * 0.78;
         const bx = yo ? x + w - bw : x;
@@ -1053,13 +1066,18 @@ canvas.lienzo3d:active { cursor: grabbing; }
       return y;
     },
     lineas(c, b, x, y, w, u) {
-      c.font = '600 ' + Math.round(6 * u) + 'px "SF Mono", Menlo, Consolas, monospace'; c.fillStyle = '#2b3140';
-      b.items.forEach(l => { c.fillText(recortar(c, l, w), x, y + 4 * u); y += 8 * u; });
+      const mono = p => '600 ' + Math.round(p * u) + 'px "SF Mono", Menlo, Consolas, monospace'; c.fillStyle = '#2b3140';
+      b.items.forEach(l => {
+        let p = 6; c.font = mono(p);
+        if (b.ajustar) while (p > 3.4 && c.measureText(l).width > w) { p -= 0.2; c.font = mono(p); }   // ajustar: la línea se encoge en vez de cortarse
+        c.fillText(recortar(c, l, w), x, y + 4 * u); y += 8 * u;
+      });
       return y;
     },
     texto(c, b, x, y, w, u) {
-      fuente(c, 500, 5.6 * u); c.fillStyle = '#4a5568';
-      lineasDe(c, b.texto, w).slice(0, 3).forEach(l => { c.fillText(l, x, y + 4 * u); y += 7 * u; });
+      const t = b.tam || 5.6, k = t / 5.6;   // tam: tamaño de la letra; max: líneas como máximo (por defecto 3)
+      fuente(c, 500, t * u); c.fillStyle = '#4a5568';
+      lineasDe(c, b.texto, w).slice(0, b.max || 3).forEach(l => { c.fillText(l, x, y + 4 * k * u); y += 7 * k * u; });
       return y;
     },
     llamada(c, b, x, y, w, u) {
@@ -1119,7 +1137,12 @@ canvas.lienzo3d:active { cursor: grabbing; }
     aviso: b => '<div class="pv-aviso' + tono(b.tono || 'azul') + '">' + esc((ICONO[b.tono] || '') + b.texto) + '</div>',
     botones: b => '<div class="pv-botones">' + b.items.map((t, i) => '<span' + (i === (b.principal || 0) ? ' class="prin"' : '') + '>' + esc(t) + '</span>').join('') + '</div>',
     estados: b => '<div class="pv-estados">' + b.items.map((t, i) => '<span class="' + (i === b.actual ? 'act' : i < b.actual ? 'hecho' : '') + '">' + esc(t) + '</span>').join('') + '</div>',
-    chat: b => '<div class="pv-chat">' + (b.mensajes || []).map(m => '<p class="' + (m.de === 'yo' ? 'yo' : '') + '">' + esc(m.texto) + (m.hora ? '<small>' + esc(m.hora) + '</small>' : '') + '</p>').join('') + '</div>',
+    chat: b => '<div class="pv-chat">' + (b.mensajes || []).map(m => m.audio
+      ? '<p class="' + (m.de === 'yo' ? 'yo' : '') + '" style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:200px">' +
+        '<i style="flex:none;width:32px;height:32px;border-radius:50%;background:#128c7e;color:#fff;font-style:normal;font-size:13px;display:grid;place-items:center;padding-left:2px">▶</i>' +
+        '<span style="display:flex;align-items:center;gap:2px;flex:1;height:28px">' + ONDA.map((a, i) => '<i style="display:block;width:3px;height:' + Math.round(4 + a * 20) + 'px;border-radius:2px;background:' + (i < 7 ? '#128c7e' : '#b3bcc7') + '"></i>').join('') + '</span>' +
+        '<small style="flex-basis:100%;margin:-2px 0 0">' + esc(m.audio) + (m.hora ? ' · ' + esc(m.hora) : '') + '</small></p>'
+      : '<p class="' + (m.de === 'yo' ? 'yo' : '') + '">' + esc(m.texto) + (m.hora ? '<small>' + esc(m.hora) + '</small>' : '') + '</p>').join('') + '</div>',
     lineas: b => '<pre class="pv-lineas">' + b.items.map(esc).join('\n') + '</pre>',
     texto: b => '<p class="pv-texto">' + esc(b.texto) + '</p>',
     llamada: b => '<div class="pv-llamada"><b>' + esc(b.numero) + '</b><span class="' + tono(b.tono || 'gris') + '">' + esc(b.estado || '') + '</span><i>✆</i></div>',
@@ -1305,8 +1328,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
 <script>
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
-// (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, quitado, pantalla, nota }],
+// (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1483,6 +1506,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
       et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+        (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
       et.addEventListener('click', () => m.sim.ui.abrirModulo(def.id));
@@ -1778,7 +1802,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     pon('manuales', r.manuales, base ? 'hoy' : (r.manuales - b.manuales) + ' frente a hoy', base ? null : r.manuales < b.manuales);
     pon('min', n1(r.min) + ' min', base ? 'hoy' : 'antes ' + n1(b.min) + ' min', base ? null : true);
     pon('horas', n1(r.horas) + ' h', base ? n1(r.unidades) + ' ' + (G.unidad.varias || '') + ' al mes' : '−' + n1(r.ahorroH) + ' h al mes', base ? null : true);
-    pon('errores', n1(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n1(b.errores), base ? null : true);
+    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n0(b.errores), base ? null : true);
     pon('ahorro', base ? '0 €' : n0(r.ahorro) + ' €', base ? 'punto de partida' : n0(r.ahorro * 12) + ' € al año', base ? null : true);
   };
 
@@ -1842,10 +1866,10 @@ canvas.lienzo3d:active { cursor: grabbing; }
       const n = pila[clave] = (pila[clave] || 0) + 1;
       // Bocadillos encima del ancla; marcas ⚠ y ✓ a su derecha, apiladas.
       let px = (v.x + 1) / 2 * W + (marca ? 16 : 0), py = (1 - v.y) / 2 * H + (marca ? -14 + (n - 1) * 32 : -(n - 1) * 46);
-      // Que no se salga de la zona libre: si el ancla queda fuera de cuadro, el texto se queda en el borde.
+      // Que no se salga de la zona libre (el bocadillo entero, con su alto real): si el ancla queda fuera de cuadro, el texto se queda en el borde.
       const a = u.areaLibre(), mx = Math.min(130, a.w / 2 - 10);
       px = marca ? Math.max(a.x + 8, Math.min(a.x + a.w - 200, px)) : Math.max(a.x + mx, Math.min(a.x + a.w - mx, px));
-      py = marca ? Math.max(a.y + 8, Math.min(a.y + a.h - 40, py)) : Math.max(a.y + 70, Math.min(a.y + a.h - 6, py));
+      py = marca ? Math.max(a.y + 8, Math.min(a.y + a.h - 40, py)) : Math.max(a.y + Math.max(70, (el._h || (el._h = el.offsetHeight)) + 8), Math.min(a.y + a.h - 6, py));
       el.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)' + (marca ? '' : ' translate(-50%,-100%)');
       vistos.add(x.id);
     });
@@ -1872,7 +1896,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const campo = (k, et, val, paso) => '<label><span>' + esc(et) + '</span><input type="number" inputmode="decimal" min="0" step="' + paso + '" data-k="' + k + '" value="' + val + '"></label>';
     const filas = G.escenarios.map(e => {
       const r = SIM.calculo.escenario(G, v, e);
-      return '<tr><td><i style="background:' + e.color + '"></i>' + esc(e.nombre) + '</td><td>' + n1(r.min) + '</td><td>' + n1(r.horas) + '</td><td>' + n1(r.errores) + '</td><td>' + (e === G.escenarios[0] ? 'punto de partida' : n0(r.ahorro) + ' €') + '</td></tr>';
+      return '<tr><td><i style="background:' + e.color + '"></i>' + esc(e.nombre) + '</td><td>' + n1(r.min) + '</td><td>' + n1(r.horas) + '</td><td>' + n0(r.errores) + '</td><td>' + (e === G.escenarios[0] ? 'punto de partida' : n0(r.ahorro) + ' €') + '</td></tr>';
     }).join('');
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button><h3>Supuestos</h3><p class="sub">Cambia los valores y las cifras se recalculan al momento. Todas son <b>estimación</b>.</p>' +
@@ -1908,7 +1932,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       n++; return '<div class="preg"><label><b>' + n + '.</b> ' + esc(q) + '</label><textarea rows="2" data-r="' + gi + '-' + qi + '" placeholder="Vuestra respuesta">' + esc(u._resp[gi + '-' + qi] || '') + '</textarea></div>';
     }).join('') + '</section>').join('');
     $(M, '.modal-card').innerHTML =
-      '<button class="cerrar rojo" data-cerrar aria-label="Cerrar">×</button><h3>Preguntas para el despacho</h3>' + ((G.intro || G.preguntasIntro) ? '<p class="sub">' + esc(G.intro || G.preguntasIntro) + '</p>' : '') +
+      '<button class="cerrar rojo" data-cerrar aria-label="Cerrar">×</button><h3>' + esc(G.preguntasTitulo || 'Preguntas para el despacho') + '</h3>' + ((G.intro || G.preguntasIntro) ? '<p class="sub">' + esc(G.intro || G.preguntasIntro) + '</p>' : '') +
       '<div class="preg-lista">' + grupos + '</div>' +
       '<p class="preg-nota">Lo que escribáis se queda en este navegador. No se envía nada hasta que pulséis uno de los botones.</p>' +
       '<div class="sup-botones preg-botones"><button data-accion="copiar">Copiar respuestas</button><button class="prin" data-accion="whatsapp">Enviar por WhatsApp</button></div>';
@@ -1930,7 +1954,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     const u = this, G = u.G, v = u.sim.supuestos;
     M.querySelectorAll('.sup-tabla tbody tr').forEach((tr, i) => {
       const e = G.escenarios[i], r = SIM.calculo.escenario(G, v, e), td = tr.querySelectorAll('td');
-      td[1].textContent = n1(r.min); td[2].textContent = n1(r.horas); td[3].textContent = n1(r.errores); td[4].textContent = i ? n0(r.ahorro) + ' €' : 'punto de partida';
+      td[1].textContent = n1(r.min); td[2].textContent = n1(r.horas); td[3].textContent = n0(r.errores); td[4].textContent = i ? n0(r.ahorro) + ' €' : 'punto de partida';
     });
   };
   P.fichaPersona = function (p, x, y) {
@@ -1953,7 +1977,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(R, '.resumen').innerHTML = '<div class="resumen-card"><button class="cerrar" data-accion="cerrar" aria-label="Cerrar" title="Cerrar">×</button><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
       '<table><thead><tr><th></th><th>Hoy</th>' + (base ? '' : '<th>' + esc(e.nombre) + '</th>') + '</tr></thead><tbody>' +
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
-      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n1(b.errores), n1(r.errores)) + '</tbody></table>' +
+      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
         : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
@@ -2839,7 +2863,7 @@ SIM.escena = function (K, M) {
       volumen: { etiqueta: 'Consultas de expediente al día', valor: 5, periodo: 'dia' },
       dias: { etiqueta: 'Días de trabajo al mes', valor: 20 },
       coste: { etiqueta: 'Coste por hora (€/hora)', valor: 40 },
-      errores: { etiqueta: 'Expediente o papel que no aparece o se archiva mal (%)', valores: { actual: 10, mejorado: 4, optimo: 1 } },
+      errores: { etiqueta: 'Expediente o papel que no aparece o se archiva mal (%)', valores: { actual: 10, mejorado: 4, optimo: 0 } },
     },
     formulas: 'Horas al mes = consultas al día × días × minutos por consulta ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Errores al mes = consultas al mes × %. El ahorro supone que el despacho recupera ese tiempo. ' + SIEMPRE,
     intro: 'Las cifras de esta simulación son estimadas. Con vuestras respuestas las ponemos reales y corregimos lo que no sea así.',
