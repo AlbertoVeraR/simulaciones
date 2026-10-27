@@ -1329,7 +1329,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
 // (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, probar (etiqueta «POR PROBAR»), quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1505,7 +1505,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       hit.userData.modulo = def.id;
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
-      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo && !def.probar ? '<i class="tag-nuevo">NUEVO</i>' : '') + (def.probar ? '<i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') +
         (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
@@ -1885,7 +1885,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button>' +
       '<small class="sobre">' + esc(u.G.textoPantalla || 'Cómo se vería en el ordenador') + '</small>' +
-      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
+      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.probar ? ' <i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
       '<div class="mm-pantalla">' + SIM.Pantallas.html(spec) + '</div>' +
       (d.nota ? '<p class="mm-nota"><b>Qué hace:</b> ' + esc(d.nota) + '</p>' : '') +
       (d.construir ? '<p class="mm-nota"><b>Para construirlo:</b> ' + esc(d.construir) + '</p>' : '');
@@ -2844,10 +2844,8 @@ SIM.escena = function (K, M) {
 (function () {
   'use strict';
   const AZUL = '#2f63d6', NUEVO = '#0f9a6c', GRIS = '#5b6b86';
-  const NUM = '600 98 76 54';   // línea oficial de WhatsApp de la farmacia (número ficticio)
-  const GRABACION = 'Farmacia Demo: su encargo ya ha llegado. Pase cuando quiera con su resguardo.';   // lo que dice la nota de voz: una grabación de la farmacia, no una voz de IA
-  const NOTA = { audio: '0:09', hora: '13:31' };
-  const MSG = 'Hola, Sr. Ramírez: su encargo (Colirio Hidrafresh 10 ml) ya está en Farmacia Demo. Puede recogerlo hoy hasta las 21:00.';
+  const NUM = '600 98 76 54';   // línea de avisos de la farmacia: una SIM propia para WhatsApp y SMS (número ficticio)
+  const MSG = 'Hola, Sr. Ramírez: su encargo E-0427 ya ha llegado a Farmacia Demo. Puede recogerlo hoy hasta las 21:00 con su resguardo.';
   const ESTADOS = ['Por pedir', 'Pedido', 'Llegó', 'Avisado', 'Recogido'];
   const TONO_ESTADO = { 'Por pedir': 'ambar', Pedido: 'azul', 'Llegó': 'verde', Avisado: 'verde', Recogido: 'gris' };
   const lista = e => ['lista', { ramirez: e }];
@@ -2889,8 +2887,8 @@ SIM.escena = function (K, M) {
       { tipo: 'llamada', numero: '600 12 34 56', estado: 'Sin respuesta · otro intento a las 13:50', tono: 'rojo' }] },
     // Mejorado (sin tocar el programa de la farmacia)
     'resguardo': { marco: 'papel', titulo: 'RESGUARDO', bloques: [
-      { tipo: 'lineas', ajustar: true, items: ['Código: E-0427', 'Sr. Ramírez', 'Colirio Hidrafresh', '25/10 · 10:18', 'WhatsApp ' + NUM] },
-      { tipo: 'texto', tam: 4.3, max: 4, texto: 'Solo le escribiremos desde este número, la línea oficial de la farmacia. Guárdelo.' }] },
+      { tipo: 'lineas', ajustar: true, items: ['Código: E-0427', 'Sr. Ramírez', 'Colirio Hidrafresh', '25/10 · 10:18', 'WhatsApp o SMS ' + NUM] },
+      { tipo: 'texto', tam: 4.3, max: 4, texto: 'Solo le avisaremos desde este número, por WhatsApp o SMS. Guárdelo.' }] },
     'formulario': { app: 'Encargos · formulario único', titulo: 'Nuevo encargo', color: NUEVO, bloques: [
       { tipo: 'campos', filas: [['Cliente', 'Sr. Ramírez'], ['Teléfono', '600 12 34 56'], ['Producto', 'Colirio Hidrafresh 10 ml'], ['Almacén', 'B · 4,10 €']] },
       { tipo: 'botones', items: ['Guardar encargo', 'Imprimir resguardo'], color: NUEVO }] },
@@ -2908,9 +2906,9 @@ SIM.escena = function (K, M) {
         ['Colirio Hidrafresh 10 ml', '1', { t: 'la lista', tono: 'verde' }], ['Crema Dermaplus 200 ml', '1', { t: 'la lista', tono: 'verde' }], ['Reposición de stock', '38', 'automático']] },
       { tipo: 'aviso', texto: 'La lista marca lo que falta por pedir: nada se queda fuera', tono: 'verde' }] },
     'recepcion-mejorado': { app: 'Programa de gestión', titulo: 'Recepción · Almacén B · 13:30', color: AZUL, bloques: [
-      { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Marca'], anchos: [0.62, 0.14, 0.24], resaltar: 0, filas: [
-        ['Colirio Hidrafresh 10 ml', '1', { t: 'E', tono: 'rojo' }], ['Crema Dermaplus 200 ml', '1', { t: 'E', tono: 'rojo' }], ['Paracetamol 1 g', '12', '']] },
-      { tipo: 'aviso', texto: 'En la lista: es de Ramírez → se marca «Llegó»', tono: 'verde' }] },
+      { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Caducidad'], anchos: [0.6, 0.14, 0.26], resaltar: 0, filas: [
+        ['Colirio Hidrafresh 10 ml', '1', '10/2028'], ['Crema Dermaplus 200 ml', '1', '03/2027'], ['Paracetamol 1 g', '12', '05/2029']] },
+      { tipo: 'aviso', texto: 'Los encargos se escanean en la lista: Ramírez → «Llegó»', tono: 'verde' }] },
     'whatsapp': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [{ texto: MSG, hora: '13:31' }] }] },
     // Óptimo (conectado al programa y a los almacenes)
     'stock-comparador': { app: 'Programa de gestión + conector', titulo: 'Colirio Hidrafresh 10 ml', color: AZUL, bloques: [
@@ -2928,6 +2926,9 @@ SIM.escena = function (K, M) {
         ['Almacén A', { t: 'No', tono: 'rojo' }, 'sin precio', ''], ['Almacén B', { t: 'Sí', tono: 'verde' }, '4,10 €', { t: '✓', tono: 'verde' }], ['Almacén C', { t: 'Desabastecido', tono: 'ambar' }, 'sin precio', '']] },
       { tipo: 'aviso', texto: 'Va en el pedido de las 11:00 con el B, el más barato que lo tiene', tono: 'verde' },
       { tipo: 'botones', items: ['Confirmar', 'Cambiar'], color: NUEVO }] },
+    'aemps': { app: 'AEMPS · problemas de suministro', titulo: 'Colirio Hidrafresh 10 ml', color: NUEVO, bloques: [
+      { tipo: 'campos', filas: [['Problema de suministro', 'No', 'verde'], ['Fuente', 'CIMA (AEMPS), oficial'], ['Consultado', 'al encargar']] },
+      { tipo: 'aviso', texto: 'Sin aviso oficial: se puede encargar', tono: 'verde' }] },
     'pedido-auto': { app: 'Pedido automático', titulo: 'Pedido de las 11:00 · enviado', color: NUEVO, bloques: [
       { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Almacén'], anchos: [0.6, 0.14, 0.26], resaltar: 0, filas: [
         ['Colirio Hidrafresh 10 ml', '1', 'B'], ['Crema Dermaplus 200 ml', '1', 'B'], ['Reposición de stock', '38', 'B']] },
@@ -2936,12 +2937,8 @@ SIM.escena = function (K, M) {
       { tipo: 'tabla', columnas: ['Producto', 'Uds.', 'Encargo de'], anchos: [0.56, 0.14, 0.3], resaltar: 0, filas: [
         ['Colirio Hidrafresh 10 ml', '1', { t: 'Ramírez', tono: 'verde' }], ['Crema Dermaplus 200 ml', '1', { t: 'Gómez', tono: 'verde' }], ['Paracetamol 1 g', '12', '']] },
       { tipo: 'aviso', texto: 'Aparta en la cesta: «Encargo de Ramírez»', tono: 'verde' }] },
-    'whatsapp-voz': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [{ texto: MSG, hora: '13:31' }, NOTA] }] },
     'whatsapp-rec': { marco: 'movil', app: 'Farmacia Demo', titulo: NUM, bloques: [{ tipo: 'chat', mensajes: [
-      { texto: MSG, hora: '13:31' }, NOTA, { texto: 'Recordatorio: su encargo sigue esperándole en Farmacia Demo.', hora: 'a los 3 días' }] }] },
-    'llamada-ia': { app: 'Asistente de voz con IA', titulo: 'Llamada automática al cliente', color: NUEVO, bloques: [
-      { tipo: 'llamada', numero: '600 12 34 56', estado: 'Contestada · aviso dado en 20 s', tono: 'verde' },
-      { tipo: 'aviso', texto: 'A la vez sale el WhatsApp; si no contesta, deja el aviso en el buzón', tono: 'verde' }] },
+      { texto: MSG, hora: '13:31' }, { texto: 'Recordatorio: su encargo sigue esperándole en Farmacia Demo.', hora: 'a los 3 días' }] }] },
     // Móvil del cliente
     'movil-bloqueado': { marco: 'bloqueo', titulo: '10:15', bloques: [] },
     'movil-sonando': { marco: 'bloqueo', titulo: '13:35', bloques: [{ texto: 'Llamada entrante: Farmacia Demo', tono: 'verde' }] },
@@ -3019,15 +3016,16 @@ SIM.escena = function (K, M) {
         '¿Cuántos clientes no vienen a recogerlo? ¿Qué hacéis con el producto?'] },
       { titulo: 'Cómo lo hacéis hoy', items: [
         '¿Dónde apuntáis el encargo: en el programa, en papel o en los dos?',
-        '¿Qué programa de gestión usáis y quién os da soporte? ¿Deja exportar datos o conectarse?',
-        '¿Con cuántos almacenes trabajáis y cuántos pedidos os llegan al día?',
+        '¿Qué programa de gestión usáis (Bitfarma, Farmatic, Nixfarma, Unycop…), qué versión y quién os da soporte?',
+        '¿Nos mandáis fotos del programa (ventanita de encargos, recepción con la «E» y ficha de cliente), tapando los datos de clientes?',
+        '¿Con qué almacenes trabajáis, cuántos pedidos os llegan al día y cómo pedís (webs de los almacenes o el programa)?',
         'Al recibir el pedido, ¿cómo sabéis qué producto es de un encargo?'] },
       { titulo: 'El aviso al cliente', items: [
-        '¿Cómo avisáis hoy (llamada, WhatsApp, SMS) y desde qué teléfono? ¿Tenéis WhatsApp Business o un móvil de la farmacia?',
+        '¿Cómo avisáis hoy (llamada, WhatsApp, SMS) y desde qué teléfono? ¿Tenéis ya WhatsApp en la farmacia?',
+        '¿Tenéis un número (una SIM) solo para los avisos o hay que sacarlo?',
         '¿Cuántas veces hay que volver a llamar porque no contesta?',
         '¿Cuántos de vuestros clientes son mayores o extranjeros? ¿En qué idiomas os vendría bien avisar?',
-        '¿Os basta un WhatsApp con texto y nota de voz, o queréis también una llamada automática con voz de IA (tiene coste extra y el cliente firma que la acepta)?',
-        '¿Os parece bien que el mensaje diga solo el código del encargo, sin el nombre del medicamento?'] },
+        '¿Os parece bien que el aviso diga solo que su encargo ha llegado, sin el nombre del producto?'] },
       { titulo: 'Lo más importante', items: ['¿Qué no es así en vuestra farmacia?'] },
     ],
     textoPantalla: 'Cómo se vería en el ordenador de la farmacia',
@@ -3117,20 +3115,20 @@ SIM.escena = function (K, M) {
             ] },
         ] },
       // ===================== MEJORADO =====================
-      { id: 'mejorado', nombre: 'Mejorado', lema: 'sin tocar el programa', color: '#f2a516',
-        cierre: 'Un formulario y una lista con estados quitan la doble captura y la búsqueda en el tablón; el cliente se lleva su resguardo y el aviso sale solo por WhatsApp. ' + SIEMPRE,
+      { id: 'mejorado', nombre: 'Mejorado', lema: 'sin tocar el programa · se puede hoy', color: '#f2a516',
+        cierre: 'Un formulario y una lista con estados quitan la doble captura y la búsqueda en el tablón; el cliente se lleva su resguardo y el aviso sale solo por WhatsApp o SMS, sin decir el producto. Todo se puede hacer hoy, con cualquier programa de gestión. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'papelito2'], [0, 'ocultar', 'papelito3'], [0, 'ocultar', 'papelito4']],
         modulos: [mod(M.stock, { col: 0, fila: 0 }), mod(M.webs, { col: 1, fila: 0 }),
           { id: 'formulario', nombre: 'Formulario único', tipo: 'pantalla', pantalla: 'formulario', col: 2, fila: 0, nuevo: true,
             nota: 'Cliente, teléfono y producto se escriben una sola vez; el encargo entra solo en la lista como «Por pedir».',
-            construir: 'Formulario web sencillo (por ejemplo, Google Forms o una página propia) que guarda en una hoja.' },
-          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'Imprime el resguardo con el código para recogerlo y Lucía se lo da al cliente. Lleva el número de WhatsApp desde el que se avisa. La farmacia ya no guarda copia: el encargo está en la lista.' }),
-          { id: 'whatsapp', nombre: 'WhatsApp automático', tipo: 'movil', pantalla: 'whatsapp', col: 0, fila: 1, nuevo: true,
-            nota: 'Cuando el encargo pasa a «Llegó», sale solo el WhatsApp al cliente.', construir: 'Automatización que lee la lista y envía la plantilla de WhatsApp.' },
+            construir: 'Pantalla de una app web propia con los datos en la UE (no una hoja personal: son datos de salud).' },
+          mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'Imprime el resguardo con el código para recogerlo y Lucía se lo da al cliente. Lleva el número desde el que se avisa (WhatsApp o SMS). La farmacia ya no guarda copia: el encargo está en la lista.' }),
+          { id: 'whatsapp', nombre: 'Aviso por WhatsApp o SMS', tipo: 'movil', pantalla: 'whatsapp', col: 0, fila: 1, nuevo: true,
+            nota: 'Cuando el encargo pasa a «Llegó», sale solo el aviso al cliente por WhatsApp (o SMS si no lo tiene), sin decir el producto.', construir: 'Plantilla de WhatsApp aprobada por Meta con la SIM de avisos de la farmacia y SMS de respaldo.' },
           { id: 'lista', nombre: 'Lista de encargos', tipo: 'pantalla', pantalla: lista('Por pedir'), col: 1, fila: 1, nuevo: true,
-            nota: 'Todos los encargos con su estado: Por pedir, Pedido, Llegó, Avisado y Recogido.', construir: 'Hoja de cálculo o tabla compartida con una vista por estados.' },
+            nota: 'Todos los encargos con su estado: Por pedir, Pedido, Llegó, Avisado y Recogido.', construir: 'La misma app web: una tabla con una vista por estados.' },
           mod(M.pedido, { col: 2, fila: 1, pantalla: 'pedido-mejorado', nota: 'El pedido se sigue haciendo en el programa, pero la lista recuerda lo que falta por pedir.' }),
-          mod(M.recepcion, { col: 3, fila: 1, nombre: 'Recepción', pantalla: 'recepcion-mejorado', nota: 'Al ver la «E», se busca en la lista (no en el tablón) y se marca «Llegó».' })],
+          mod(M.recepcion, { col: 3, fila: 1, nombre: 'Recepción', pantalla: 'recepcion-mejorado', nota: 'Al recepcionar, se escanea en la lista el producto de cada encargo y pasa a «Llegó»: no depende de la «E» del programa.' })],
         tubos: [['stock', 'webs'], ['webs', 'formulario'], ['formulario', 'papelito'], ['formulario', 'lista'], ['lista', 'pedido'], ['pedido', 'recepcion'], ['recepcion', 'lista', 'arco'], ['lista', 'whatsapp']],
         pasos: [
           { titulo: 'Pide el producto', quien: 'Lucía y el cliente', donde: 'Mostrador', min: 1, modo: 'manual', hora: '10:15', dur: 11, foto: 0.86,
@@ -3168,8 +3166,8 @@ SIM.escena = function (K, M) {
               [5.6, 'pantalla', 'pc1', lista('Pedido')], [6.0, 'decir', 'lucia', 'Pedido y marcado en la lista.', 2.2], [6.3, 'marca', 'mejora', 'lucia', 'Ningún encargo olvidado'],
             ]) },
           { titulo: 'Llega el pedido', quien: 'Lucía y el repartidor', donde: 'Trastienda', min: 0.3, modo: 'manual', hora: '13:30', dur: 11, foto: 0.74,
-            texto: 'Busca en la lista y marca «Llegó»: ya no hay que rebuscar en el tablón.', mejoras: ['Sin rebuscar en el tablón'], estado: 'Llegó', tonoEstado: 'mejora', personas: ['lucia', 'repartidor'],
-            haciendo: { lucia: 'Escanea, mira la lista y marca «Llegó».', repartidor: 'Deja las cubetas del almacén B.', ramirez: 'Descansa en un banco.' },
+            texto: 'Escanea en la lista el producto del encargo y pasa a «Llegó»: ya no hay que rebuscar en el tablón.', mejoras: ['Sin rebuscar en el tablón'], estado: 'Llegó', tonoEstado: 'mejora', personas: ['lucia', 'repartidor'],
+            haciendo: { lucia: 'Escanea el colirio en la lista: pasa a «Llegó».', repartidor: 'Deja las cubetas del almacén B.', ramirez: 'Descansa en un banco.' },
             monitor: { ruta: ['pedido', 'recepcion', 'lista'], manual: ['recepcion', 'lista'], pantallas: { lista: lista('Llegó') } },
             acciones: reparto.concat([
               [6.6, 'pantalla', 'pcRecepcion', ['lista', { ramirez: 'Llegó', aviso: 'Colirio Hidrafresh 10 ml: encargo de Ramírez', tono: 'verde' }]],
@@ -3177,7 +3175,7 @@ SIM.escena = function (K, M) {
               [8.6, 'dejar', 'escaner', 'escaner.base'], [8.6, 'dejar', 'colirio', 'mesa.colirio'], [8.6, 'hacer', 'lucia', 'libre'],
             ]) },
           { titulo: 'Aviso automático', quien: 'El sistema (Lucía solo revisa)', donde: 'WhatsApp del cliente', min: 0.2, modo: 'auto', hora: '13:31', dur: 10, foto: 0.45,
-            texto: 'Sale solo el WhatsApp al cliente. Estados: Por pedir, Pedido, Llegó, Avisado y Recogido.', mejoras: ['Aviso automático'], estado: 'Avisado', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
+            texto: 'Sale solo el WhatsApp (o SMS) al cliente, sin decir el producto. Estados: Por pedir, Pedido, Llegó, Avisado y Recogido.', mejoras: ['Aviso automático'], estado: 'Avisado', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
             haciendo: { lucia: 'Solo revisa que el aviso salió.', ramirez: 'Recibe el WhatsApp: ya puede pasar a recogerlo.' },
             monitor: { ruta: ['lista', 'whatsapp'], pantallas: { lista: lista('Avisado') } },
             acciones: whatsapp('whatsapp').concat([
@@ -3186,34 +3184,34 @@ SIM.escena = function (K, M) {
             ]) },
         ] },
       // ===================== ÓPTIMO =====================
-      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa y a los almacenes', color: '#1fb57a',
-        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo por WhatsApp, con texto y nota de voz, desde la línea oficial de la farmacia; al recogerlo basta escanear el código del resguardo. ' + SIEMPRE,
+      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa · por probar', color: '#1fb57a',
+        cierre: 'Conectado al programa y a los almacenes: el encargo se hace en un clic, se pide, se detecta al llegar y se avisa solo por WhatsApp o SMS, sin decir el producto; al recogerlo basta escanear el código del resguardo. Los módulos «POR PROBAR» dependen del programa de cada farmacia (Bitfarma, Farmatic, Nixfarma, Unycop…) y de sus almacenes: si alguno no lo permite, se usa la versión del Mejorado. El aviso oficial de desabastecimiento (AEMPS) es seguro. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'papelito2'], [0, 'ocultar', 'papelito3'], [0, 'ocultar', 'papelito4']],
-        modulos: [mod(M.stock, { col: 0, fila: 0, pantalla: 'stock-comparador', nota: 'El programa de siempre, ahora con la disponibilidad de los almacenes en la misma pantalla.' }),
-          { id: 'conector', nombre: 'Conector con el programa', tipo: 'nodo', pantalla: 'conector', col: 1, fila: 0, nuevo: true,
-            nota: 'Une el programa de gestión con la lista, los almacenes y WhatsApp: lee stock y fichas de clientes.', construir: 'Integración con el programa de gestión (exportación o conexión que ofrezca el proveedor).' },
-          { id: 'comparador', nombre: 'Comparador de almacenes', tipo: 'pantalla', pantalla: 'eleccion', col: 2, fila: 0, nuevo: true,
-            nota: 'Elige el almacén más barato que lo tiene y avisa al momento si hay desabastecimiento.', construir: 'Consulta de disponibilidad y precio en A, B y C.' },
+        modulos: [mod(M.stock, { col: 0, fila: 0, pantalla: 'stock-comparador', probar: true, nota: 'El programa de siempre y, al lado, en la app, la disponibilidad de los almacenes. Depende del programa y de los almacenes: por probar.' }),
+          { id: 'conector', nombre: 'Conector con el programa', tipo: 'nodo', pantalla: 'conector', col: 1, fila: 0, nuevo: true, probar: true,
+            nota: 'Une el programa de gestión con la lista, los almacenes y los avisos: lee stock, fichas y recepciones. Depende del programa (Bitfarma, Farmatic, Nixfarma, Unycop…) y del permiso de su proveedor: hay que probarlo en cada farmacia.', construir: 'Lectura con un usuario de solo consulta autorizado por el proveedor del programa; escribir en el programa casi nunca está permitido.' },
+          { id: 'comparador', nombre: 'Comparador de almacenes', tipo: 'pantalla', pantalla: 'eleccion', col: 2, fila: 0, nuevo: true, probar: true,
+            nota: 'Elige el almacén más barato que lo tiene. Los almacenes no dan API de stock ni de precio: por probar con la web de cada uno; si no, con sus condiciones de cada mes.', construir: 'Tabla de condiciones de cada almacén y, si se puede, consulta de su web con las claves de la farmacia.' },
           mod(M.papelito, { col: 3, fila: 0, pantalla: 'resguardo', nota: 'El mismo resguardo con código y con la línea oficial de WhatsApp de la farmacia. Al recogerlo se escanea el código y el encargo queda «Recogido» en la lista.' }),
-          { id: 'whatsappRec', nombre: 'WhatsApp con nota de voz', tipo: 'movil', pantalla: 'whatsapp-rec', col: 0, fila: 1, nuevo: true,
-            nota: 'Al llegar el encargo sale un WhatsApp con texto y una nota de voz grabada por la farmacia, desde su línea oficial. A los 3 días, un recordatorio si no lo recoge; al venderlo queda «Recogido».', construir: 'Plantillas de WhatsApp (texto y nota de voz grabada) y una regla de 3 días.' },
-          { id: 'llamadaIA', nombre: 'Llamada con IA de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 1, fila: 2, opcional: true,
-            nota: 'Opcional, con coste extra (plataforma de voz): llama al cliente, en su idioma si hace falta, y dice que es un asistente automático. Solo si la farmacia lo elige: el cliente firma que autoriza las llamadas y guarda el contacto oficial.', construir: 'Agente de voz con IA conectado a la lista: llamada saliente con un guion corto que dice que es un asistente automático.' },
+          { id: 'whatsappRec', nombre: 'Aviso por WhatsApp o SMS', tipo: 'movil', pantalla: 'whatsapp-rec', col: 0, fila: 1, nuevo: true,
+            nota: 'Al llegar el encargo sale un WhatsApp (o SMS) desde la línea de avisos de la farmacia, sin decir el producto. A los 3 días, un recordatorio si no lo recoge.', construir: 'Plantillas de WhatsApp aprobadas por Meta con la SIM de la farmacia, SMS de respaldo y una regla de 3 días.' },
           { id: 'lista', nombre: 'Lista de encargos', tipo: 'pantalla', pantalla: lista('Por pedir'), col: 1, fila: 1, nuevo: true,
-            nota: 'La misma lista con estados, rellenada sola desde el programa.' },
-          { id: 'pedidoAuto', nombre: 'Pedido automático', tipo: 'pantalla', pantalla: 'pedido-auto', col: 2, fila: 1, nuevo: true,
-            nota: 'El encargo entra solo en el siguiente pedido (11:00) con el almacén elegido.' },
-          { id: 'detector', nombre: 'Detector en la recepción', tipo: 'pantalla', pantalla: 'detector', extras: ['escaner', 'cubeta'], col: 3, fila: 1, nuevo: true,
-            nota: 'Al cerrar la recepción detecta el encargo y dice de quién es para apartarlo.' }],
-        tubos: [['stock', 'conector'], ['conector', 'comparador'], ['conector', 'lista'], ['lista', 'pedidoAuto'], ['comparador', 'pedidoAuto'], ['comparador', 'papelito'], ['pedidoAuto', 'detector'], ['detector', 'lista', 'arco'], ['lista', 'whatsappRec'], ['lista', 'llamadaIA']],
+            nota: 'La misma lista con estados; se rellena sola si el programa deja leer los encargos.' },
+          { id: 'pedidoAuto', nombre: 'Pedido automático', tipo: 'pantalla', pantalla: 'pedido-auto', col: 2, fila: 1, nuevo: true, probar: true,
+            nota: 'El encargo entra solo en el siguiente pedido (11:00) con el almacén elegido. Depende de que el programa deje escribir en el pedido: por probar; si no, la app deja el pedido preparado y Lucía lo añade.' },
+          { id: 'detector', nombre: 'Detector en la recepción', tipo: 'pantalla', pantalla: 'detector', extras: ['escaner', 'cubeta'], col: 3, fila: 1, nuevo: true, probar: true,
+            nota: 'Al cerrar la recepción detecta el encargo y dice de quién es para apartarlo. Depende de que el programa deje leer la recepción: por probar; si no, se escanea en la lista como en el Mejorado.' },
+          { id: 'aemps', nombre: 'Aviso oficial AEMPS', tipo: 'pantalla', pantalla: 'aemps', col: 2, fila: 2, nuevo: true,
+            nota: 'Al encargar, consulta los problemas de suministro oficiales de la AEMPS: si el medicamento tiene uno, avisa con el cliente aún en el mostrador. Es seguro: no depende del programa.', construir: 'API pública y gratuita de CIMA (AEMPS); solo medicamentos con código nacional.' }],
+        tubos: [['stock', 'conector'], ['conector', 'comparador'], ['conector', 'lista'], ['lista', 'pedidoAuto'], ['comparador', 'pedidoAuto'], ['comparador', 'papelito'], ['pedidoAuto', 'detector'], ['detector', 'lista', 'arco'], ['lista', 'whatsappRec'], ['aemps', 'comparador', 'arco']],
         pasos: [
           { titulo: 'Pide el producto', quien: 'Lucía y el cliente', donde: 'Mostrador', min: 1, modo: 'manual', hora: '10:15', dur: 11, foto: 0.86,
-            texto: 'Stock 0 y, en la misma pantalla, disponibilidad y precio en los almacenes A, B y C.', mejoras: ['Todo en una pantalla'], estado: 'Sin stock · el B lo tiene', personas: ['lucia', 'ramirez'],
+            texto: 'Stock 0 y, al lado, disponibilidad y precio en los almacenes A, B y C (depende del programa y de los almacenes: por probar).', mejoras: ['Todo en una pantalla'], estado: 'Sin stock · el B lo tiene', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Ve el stock y los almacenes en la misma pantalla.', ramirez: 'Pide el colirio Hidrafresh en el mostrador.' },
             monitor: { ruta: ['stock'], senales: [['stock', 'conector'], ['conector', 'comparador']] },
             acciones: pide('stock-comparador', 'Stock 0, pero el B lo tiene.').concat([[9.4, 'marca', 'mejora', 'pc1', 'Todo en una pantalla']]) },
           { titulo: 'Encargo en un clic', quien: 'Lucía', donde: 'Ordenador del mostrador', min: 0.5, modo: 'manual', hora: '10:16', dur: 8, foto: 0.5,
-            texto: 'Los datos del cliente salen de su ficha: no se teclea nada.', mejoras: ['Un clic'], estado: 'Encargado', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
+            texto: 'Los datos del cliente salen de su ficha: no se teclea nada (si el programa deja leerla; si no, la app guarda su propia ficha).', mejoras: ['Un clic'], estado: 'Encargado', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Encarga con un clic: los datos salen de la ficha.', ramirez: 'Espera unos segundos en el mostrador.' },
             monitor: { ruta: ['stock', 'conector', 'lista'], manual: ['stock'], pantallas: { lista: lista('Por pedir') } },
             acciones: [
@@ -3222,9 +3220,9 @@ SIM.escena = function (K, M) {
               [5.9, 'hacer', 'ramirez', 'hablar'], [6.0, 'decir', 'ramirez', '¡Qué rápido!', 1.5], [7.4, 'hacer', 'ramirez', 'libre'],
             ] },
           { titulo: 'Elige el almacén solo', quien: 'El sistema (Lucía confirma)', donde: 'Ordenador del mostrador', min: 0.2, modo: 'manual', hora: '10:17', dur: 16, foto: 0.62,
-            texto: 'Entra en el siguiente pedido con el almacén más barato que lo tiene; si hubiera desabastecimiento avisaría al momento, con el cliente aún en el mostrador. Sale el resguardo con el código (E-0427).', mejoras: ['Elige el más barato con stock'], estado: 'En el pedido de las 11:00', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
+            texto: 'Entra en el siguiente pedido con el almacén más barato que lo tiene; el aviso oficial de la AEMPS dice al momento si hay desabastecimiento, con el cliente aún en el mostrador. Sale el resguardo con el código (E-0427).', mejoras: ['Elige el más barato con stock', 'Aviso oficial AEMPS'], estado: 'En el pedido de las 11:00', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Confirma el almacén que propone el sistema y entrega el resguardo.', ramirez: 'Recibe su resguardo y se va tranquilo: le avisarán por WhatsApp.' },
-            monitor: { ruta: ['lista', 'pedidoAuto'], manual: ['comparador', 'papelito'], senales: [['comparador', 'pedidoAuto'], ['comparador', 'papelito']] },
+            monitor: { ruta: ['lista', 'pedidoAuto'], manual: ['comparador', 'papelito'], senales: [['aemps', 'comparador'], ['comparador', 'pedidoAuto'], ['comparador', 'papelito']] },
             acciones: [
               [0, 'toma', 'mostradorL'], [0, 'hacer', 'lucia', 'teclear'], [0.4, 'pantalla', 'pc1', 'eleccion'], [1.2, 'marca', 'mejora', 'pc1', 'Elige el más barato con stock', 3.6],
               [3.6, 'hacer', 'lucia', 'hablar'], [3.7, 'decir', 'lucia', 'Le llega hoy a mediodía; le avisamos por WhatsApp.', 2.6],
@@ -3237,7 +3235,7 @@ SIM.escena = function (K, M) {
               [12.5, 'decir', 'ramirez', '¡Estupendo, gracias!', 1.5], [14.0, 'ir', 'ramirez', 'banco'], [14.1, 'hacer', 'lucia', 'libre'],
             ] },
           { titulo: 'Pedido lanzado a las 11:00', quien: 'Automático', donde: 'Programa y almacén B', min: 0, modo: 'auto', hora: '11:00', dur: 8, foto: 0.45,
-            texto: 'El pedido sale solo a las 11:00 con el encargo dentro. Lucía no hace nada: atiende y repone.', mejoras: ['Automático: 0 minutos'], estado: 'Pedido', tonoEstado: 'mejora', personas: ['lucia'],
+            texto: 'El pedido sale solo a las 11:00 con el encargo dentro; Lucía atiende y repone. Por probar: si el programa no deja escribir en el pedido, la app lo deja preparado y Lucía lo añade.', mejoras: ['Automático: 0 minutos'], estado: 'Pedido', tonoEstado: 'mejora', personas: ['lucia'],
             haciendo: { lucia: 'Repone baldas mientras el pedido sale solo.', ramirez: 'Sigue con su día.' },
             monitor: { ruta: ['pedidoAuto'], senales: [['comparador', 'pedidoAuto'], ['lista', 'pedidoAuto']], pantallas: { lista: lista('Pedido') } },
             acciones: enElBanco(false).concat([
@@ -3245,7 +3243,7 @@ SIM.escena = function (K, M) {
               [0.8, 'marca', 'mejora', 'pc1', 'Enviado solo a las 11:00', 3.6], [4.2, 'toma', 'estanteria'], [4.6, 'decir', 'lucia', 'Mientras, repongo las baldas.', 2.2],
             ]) },
           { titulo: 'Recepción', quien: 'Lucía y el repartidor', donde: 'Trastienda', min: 0.1, modo: 'auto', hora: '13:30', dur: 11, foto: 0.68,
-            texto: 'Al cerrar la recepción detecta el encargo y lo aparta: «Encargo de Ramírez».', mejoras: ['Detecta el encargo solo'], estado: 'Apartado', tonoEstado: 'mejora', personas: ['lucia', 'repartidor'],
+            texto: 'Al cerrar la recepción detecta el encargo y lo aparta: «Encargo de Ramírez». Por probar: si el programa no deja leer la recepción, se escanea en la lista.', mejoras: ['Detecta el encargo solo'], estado: 'Apartado', tonoEstado: 'mejora', personas: ['lucia', 'repartidor'],
             haciendo: { lucia: 'Cierra la recepción y aparta el colirio en la cesta.', repartidor: 'Deja las cubetas del almacén B.', ramirez: 'Descansa en un banco.' },
             monitor: { ruta: ['pedidoAuto', 'detector', 'lista'], pantallas: { lista: lista('Llegó') } },
             acciones: reparto.concat([
@@ -3253,28 +3251,26 @@ SIM.escena = function (K, M) {
               [7.8, 'dejar', 'escaner', 'escaner.base'], [7.8, 'hacer', 'lucia', 'libre'],
               [8.4, 'mover', 'colirio', 'cesta.dentro', 0.9], [8.6, 'decir', 'lucia', 'Apartado: «Encargo de Ramírez».', 2.2],
             ]) },
-          { titulo: 'Aviso por WhatsApp y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 23.5, foto: 0.36,
-            texto: 'Al llegar, sale un WhatsApp con texto y nota de voz desde la línea oficial de la farmacia; recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Texto y nota de voz', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
-            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Recibe el WhatsApp, escucha la nota de voz y pasa a recogerlo con su resguardo.' },
+          { titulo: 'Aviso por WhatsApp o SMS y recogida', quien: 'Automático (al recoger, Lucía escanea)', donde: 'WhatsApp y mostrador', min: 0, modo: 'auto', hora: '13:31', horaFin: '18:05', dur: 18.5, foto: 0.36,
+            texto: 'Al llegar, sale un WhatsApp (o SMS) desde la línea de avisos de la farmacia, sin decir el producto; recordatorio a los 3 días si no lo recoge. Al recogerlo, Lucía escanea el código del resguardo (E-0427) y el encargo queda «Recogido».', mejoras: ['Sin decir el producto', 'Recogido con un escaneo'], estado: 'Recogido', tonoEstado: 'mejora', personas: ['ramirez', 'lucia'],
+            haciendo: { lucia: 'Escanea el código del resguardo: el encargo queda «Recogido».', ramirez: 'Recibe el WhatsApp y pasa a recogerlo con su resguardo.' },
             monitor: { ruta: ['lista', 'whatsappRec'], senales: [['lista', 'whatsappRec']], pantallas: { lista: lista('Recogido') } },
             acciones: [
-              // El cliente espera en el banco: llega el WhatsApp con el texto y, debajo, una nota de voz grabada por la farmacia.
-              [0, 'toma', 'banco'], [0.4, 'pantalla', 'movilR', 'whatsapp-voz'], [0.4, 'efecto', 'movilRamirez', 'sonar', true], [1.2, 'efecto', 'movilRamirez', 'sonar', false],
+              // El cliente espera en el banco: llega el WhatsApp, sin decir el producto.
+              [0, 'toma', 'banco'], [0.4, 'pantalla', 'movilR', 'whatsapp'], [0.4, 'efecto', 'movilRamirez', 'sonar', true], [1.2, 'efecto', 'movilRamirez', 'sonar', false],
               [1.4, 'hacer', 'ramirez', 'coger'], [1.7, 'agarrar', 'ramirez', 'movilRamirez', 'D'], [1.9, 'hacer', 'ramirez', 'movil'],
-              [2.1, 'mensaje', 'movilRamirez', MSG, 3.5], [2.4, 'marca', 'mejora', 'ramirez', 'WhatsApp con texto y nota de voz', 3.2],
-              // Pulsa la nota y se acerca el móvil a la oreja: suena la grabación que hizo la farmacia.
-              [5.8, 'hacer', 'ramirez', 'telefono'], [6.0, 'decir', 'movilRamirez', GRABACION, 4.6], [6.2, 'marca', 'mejora', [-3.45, 1.35, 11.5], 'Grabación de la farmacia', 4.2],
-              [10.8, 'hacer', 'ramirez', 'movil'], [10.9, 'decir', 'ramirez', 'Perfecto, gracias.', 1.5],
-              [12.9, 'pantalla', 'movilR', 'whatsapp-rec'], [13.1, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días', 2.6], [14.0, 'decir', 'ramirez', 'Paso esta tarde.', 2],
+              [2.1, 'mensaje', 'movilRamirez', MSG, 3.5], [2.4, 'marca', 'mejora', 'ramirez', 'WhatsApp o SMS, sin el producto', 3.2],
+              [5.9, 'decir', 'ramirez', 'Perfecto, gracias.', 1.5],
+              [7.9, 'pantalla', 'movilR', 'whatsapp-rec'], [8.1, 'marca', 'mejora', 'movilRamirez', 'Recordatorio a los 3 días', 2.6], [9.0, 'decir', 'ramirez', 'Paso esta tarde.', 2],
               // Por la tarde vuelve con su resguardo: se escanea el código y queda «Recogido».
-              [16.0, 'rotulo', 'Por la tarde', 'El Sr. Ramírez vuelve a recoger su encargo'],
-              [16.4, 'toma', 'mostradorL'], [16.4, 'dejar', 'movilRamirez', 'banco.movil'], [16.4, 'pantalla', 'movilR', 'movil-bloqueado'],
-              [16.4, 'poner', 'lucia', 'mostrador.tec1'], [16.4, 'hacer', 'lucia', 'libre'], [16.4, 'poner', 'ramirez', 'mostrador.cliente1'], [16.4, 'hacer', 'ramirez', 'libre'],
-              [16.4, 'agarrar', 'ramirez', 'resguardo1', 'D'], [16.8, 'hacer', 'ramirez', 'coger'], [17.1, 'mover', 'resguardo1', 'mostrador.resguardo', 0.7],
-              [17.6, 'hacer', 'ramirez', 'hablar'], [17.7, 'decir', 'ramirez', 'Mi encargo, código E-0427.', 2.4], [18.6, 'hacer', 'ramirez', 'libre'],
-              [18.4, 'agarrar', 'lucia', 'escaner', 'D'], [18.6, 'hacer', 'lucia', 'escanear'], [18.8, 'efecto', 'escaner', 'laser', true], [19.4, 'efecto', 'escaner', 'laser', false],
-              [19.5, 'pantalla', 'pc1', lista('Recogido')], [19.8, 'marca', 'mejora', 'pc1', 'Recogido con un escaneo', 3],
-              [20.6, 'dejar', 'escaner', 'escaner.base'], [20.6, 'hacer', 'lucia', 'hablar'], [20.8, 'decir', 'lucia', 'Listo, ya queda «Recogido». ¡Buena tarde!', 2.4],
+              [11.0, 'rotulo', 'Por la tarde', 'El Sr. Ramírez vuelve a recoger su encargo'],
+              [11.4, 'toma', 'mostradorL'], [11.4, 'dejar', 'movilRamirez', 'banco.movil'], [11.4, 'pantalla', 'movilR', 'movil-bloqueado'],
+              [11.4, 'poner', 'lucia', 'mostrador.tec1'], [11.4, 'hacer', 'lucia', 'libre'], [11.4, 'poner', 'ramirez', 'mostrador.cliente1'], [11.4, 'hacer', 'ramirez', 'libre'],
+              [11.4, 'agarrar', 'ramirez', 'resguardo1', 'D'], [11.8, 'hacer', 'ramirez', 'coger'], [12.1, 'mover', 'resguardo1', 'mostrador.resguardo', 0.7],
+              [12.6, 'hacer', 'ramirez', 'hablar'], [12.7, 'decir', 'ramirez', 'Mi encargo, código E-0427.', 2.4], [13.6, 'hacer', 'ramirez', 'libre'],
+              [13.4, 'agarrar', 'lucia', 'escaner', 'D'], [13.6, 'hacer', 'lucia', 'escanear'], [13.8, 'efecto', 'escaner', 'laser', true], [14.4, 'efecto', 'escaner', 'laser', false],
+              [14.5, 'pantalla', 'pc1', lista('Recogido')], [14.8, 'marca', 'mejora', 'pc1', 'Recogido con un escaneo', 3],
+              [15.6, 'dejar', 'escaner', 'escaner.base'], [15.6, 'hacer', 'lucia', 'hablar'], [15.8, 'decir', 'lucia', 'Listo, ya queda «Recogido». ¡Buena tarde!', 2.4],
             ] },
         ] },
     ],
