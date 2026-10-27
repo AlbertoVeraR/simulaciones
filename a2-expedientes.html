@@ -1329,7 +1329,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
 // (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, probar (etiqueta «POR PROBAR»), quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1505,7 +1505,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       hit.userData.modulo = def.id;
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
-      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo && !def.probar ? '<i class="tag-nuevo">NUEVO</i>' : '') + (def.probar ? '<i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') +
         (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
@@ -1885,7 +1885,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button>' +
       '<small class="sobre">' + esc(u.G.textoPantalla || 'Cómo se vería en el ordenador') + '</small>' +
-      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
+      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.probar ? ' <i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
       '<div class="mm-pantalla">' + SIM.Pantallas.html(spec) + '</div>' +
       (d.nota ? '<p class="mm-nota"><b>Qué hace:</b> ' + esc(d.nota) + '</p>' : '') +
       (d.construir ? '<p class="mm-nota"><b>Para construirlo:</b> ' + esc(d.construir) + '</p>' : '');
@@ -2803,7 +2803,7 @@ SIM.escena = function (K, M) {
       { tipo: 'tabla', columnas: ['Documento', 'Origen'], anchos: [0.55, 0.45], filas: [['Informe de urgencias', { t: 'Archivo', tono: 'verde' }], ['Demanda', { t: 'Archivo', tono: 'verde' }], ['Oferta aseguradora', { t: 'WhatsApp', tono: 'azul' }]] },
       { tipo: 'aviso', texto: 'Todo en una sola carpeta', tono: 'verde' }] },
     'archivo-esc': { app: 'Archivo escaneado', titulo: 'Se hace una sola vez', color: NUEVO, bloques: [
-      { tipo: 'campos', filas: [['Expedientes', '20.000', 'verde'], ['Periodo', '2021 a 2025'], ['Estado', 'Escaneado y buscable', 'verde']] },
+      { tipo: 'campos', filas: [['Expedientes', '20.000', 'verde'], ['Periodo', '2021 a 2025'], ['Estado', 'Por fases', 'verde']] },
       { tipo: 'aviso', texto: 'Estimación del archivo del despacho', tono: 'ambar' }] },
     'plazos': { app: 'Plazos de conservación', titulo: 'Papel original', color: NUEVO, bloques: [
       { tipo: 'tabla', columnas: ['Papel', 'Conservar'], anchos: [0.55, 0.45], filas: [['Oferta aseguradora', { t: '5 años', tono: 'verde' }], ['Informe urgencias', { t: '5 años', tono: 'verde' }]] },
@@ -2886,6 +2886,7 @@ SIM.escena = function (K, M) {
       { titulo: 'Escaneo y acceso', items: [
         '¿Tenéis escáner con alimentador? ¿Preferís escanear poco a poco o encargar el archivo entero a una empresa?',
         '¿Quién debe poder ver los expedientes (socios, abogados externos, el cliente)?'] },
+      { titulo: 'Conservación', items: ['¿Cuántos expedientes están vivos (casos abiertos)?', '¿Lleváis herencias con inmuebles u operaciones de sociedades? Pueden obligar a guardar 10 años.', '¿Os serviría para lo antiguo un archivo externo con índice y escaneo bajo pedido?'] },
       { titulo: 'Lo más importante', items: ['¿Qué no es así en vuestro despacho?'] },
     ],
     textoPantalla: 'Cómo se vería en el ordenador del despacho',
@@ -2965,12 +2966,12 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['telefono'], manual: ['telefono'] }, acciones: avisar() },
         ] },
       // ===================== MEJORADO =====================
-      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su ordenador de siempre', color: '#f2a516',
-        cierre: 'Con una carpeta compartida, un escáner con alimentador y una IA que pone nombre y tipo a cada PDF, una consulta baja de 26 a 11 minutos sin cambiar de programa. Se escanea todo lo nuevo y cada expediente viejo que se consulta. ' + SIEMPRE,
+      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su ordenador de siempre · se puede hoy', color: '#f2a516',
+        cierre: 'Con una carpeta compartida, un escáner con alimentador y una IA que pone nombre y tipo a cada PDF, una consulta baja de 26 a 11 minutos sin cambiar de programa. Se escanean lo nuevo y los casos vivos al empezar, y cada expediente viejo la primera vez que se consulta. ' + SIEMPRE,
         inicio: [[0, 'dejar', 'carpeta', 'estanteria.carpeta']],
         modulos: [mod(M.telefono, { col: 0, fila: 0 }),
           { id: 'compartida', nombre: 'Carpeta compartida con buscador', tipo: 'pantalla', pantalla: 'carpeta-buscar', col: 1, fila: 0, nuevo: true,
-            nota: 'Una carpeta en OneDrive o Google Drive donde Marcos escribe «Ruiz» y lo encuentra todo.', construir: 'Carpeta compartida con una estructura por cliente y caso.' },
+            nota: 'Una carpeta en OneDrive o Google Drive donde Marcos escribe «Ruiz» y lo encuentra todo: los casos nuevos y los vivos, escaneados al empezar; los antiguos, la primera vez que se consultan.', construir: 'Carpeta compartida con una estructura por cliente y caso.' },
           mod(M.correo, { col: 2, fila: 0, nombre: 'Enlace a Lucía', pantalla: 'correo-enlace', nota: 'En vez de adjuntos, Marcos manda a Lucía el enlace a la carpeta del cliente.' }),
           mod(M.papel, { col: 3, fila: 1, nota: 'La estantería sigue: el papel original se guarda 5 años en su carpeta física.' }),
           mod(M.copiadora, { col: 0, fila: 1, quitado: true, quitadoTexto: 'se quita' }),
@@ -3031,28 +3032,28 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['telefono'], manual: ['telefono'] }, acciones: avisar() },
         ] },
       // ===================== ÓPTIMO =====================
-      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin', color: '#1fb57a',
-        cierre: 'Con el archivo escaneado una vez (20.000 expedientes) y el expediente digital con buscador con IA, una consulta baja de 26 a 4 minutos. Javier manda una foto por WhatsApp, el asistente la guarda, el buscador la encuentra y Lucía recibe el aviso. ' + SIEMPRE,
+      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin · archivo por fases', color: '#1fb57a',
+        cierre: 'Con el archivo digitalizado por fases (lo vivo al empezar y lo antiguo al consultarlo: escanear los 20.000 de una vez costaría más de lo que ahorra) y el expediente digital con buscador con IA, una consulta baja de 26 a 4 minutos. Javier manda una foto por WhatsApp, el asistente la guarda, el buscador la encuentra y Lucía recibe el aviso. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'carpeta']],
         modulos: [mod(M.telefono, { col: 0, fila: 0 }),
           { id: 'whatsapp', nombre: 'WhatsApp automático', tipo: 'movil', pantalla: 'wa-2', col: 1, fila: 0, nuevo: true,
-            nota: 'Javier manda una foto de la carta por WhatsApp; contesta un asistente automático (se presenta como tal) y la guarda en su expediente. Marcos la revisa.', construir: 'WhatsApp Business con un asistente que guarda la foto en el expediente.' },
+            nota: 'Javier manda una foto de la carta por WhatsApp; contesta un asistente automático (se presenta como tal) y la guarda en su expediente. Marcos la revisa. Para documentos delicados, un enlace de subida seguro.', construir: 'WhatsApp Business con un asistente que guarda la foto en el expediente.' },
           { id: 'lectura', nombre: 'Lectura con IA', tipo: 'nodo', pantalla: 'lectura-carta', col: 2, fila: 0, nuevo: true,
             nota: 'Lectura y clasificación con IA: la IA lee la carta, ve de qué cliente y de qué tipo es y la guarda en su expediente.', construir: 'IA que lee el documento y lo clasifica por cliente y tipo.' },
           { id: 'expediente', nombre: 'Expediente digital', tipo: 'pantalla', pantalla: 'expediente', col: 3, fila: 0, nuevo: true,
             nota: 'Un expediente por caso («2026-041 Ruiz · Tráfico») con todos sus documentos, el de la demanda de A1.', construir: 'Carpeta en la nube con nombre automático por año, número y cliente.' },
-          { id: 'archivo', nombre: 'Archivo escaneado (una vez)', tipo: 'nodo', pantalla: 'archivo-esc', col: 4, fila: 0, nuevo: true,
-            nota: 'Todo el archivo en papel se escanea una vez (unos 20.000 expedientes) y queda buscable. Estimación.', construir: 'Escaneo del archivo por una empresa o en el despacho, poco a poco.' },
+          { id: 'archivo', probar: true, nombre: 'Archivo escaneado (una vez)', tipo: 'nodo', pantalla: 'archivo-esc', col: 4, fila: 0, nuevo: true,
+            nota: 'El archivo en papel (unos 20.000 expedientes) se digitaliza por fases: lo vivo al empezar y lo antiguo cuando se consulta, o lo escanea la empresa de custodia al pedirlo. Escanearlo todo de una vez costaría más de lo que ahorra (estimación).', construir: 'Escaneo por fases en el despacho y escaneo bajo pedido en la custodia.' },
           { id: 'buscador', nombre: 'Buscador con IA', tipo: 'pantalla', pantalla: 'buscador-ia', col: 3, fila: 1.35, nuevo: true,
             nota: 'Marcos escribe «Ruiz oferta aseguradora» y sale el documento, sin hojear nada.', construir: 'Buscador con IA sobre los expedientes y sus documentos.' },
           { id: 'resumen', nombre: 'Resumen y línea de tiempo', tipo: 'nodo', pantalla: 'resumen', col: 2, fila: 1.35, nuevo: true,
             nota: 'La IA resume el expediente y lo ordena en una línea de tiempo: informe 12/09, demanda y oferta de la aseguradora.', construir: 'IA que resume y ordena por fechas los documentos del expediente.' },
           { id: 'aviso', nombre: 'Aviso a Lucía', tipo: 'pantalla', pantalla: 'aviso-lucia', col: 1, fila: 1.35, nuevo: true,
             nota: 'Lucía recibe el aviso y ve la oferta en el mismo expediente, sin correos ni adjuntos.', construir: 'Aviso automático al abogado del caso cuando entra un documento.' },
-          { id: 'plazos', nombre: 'Plazos de conservación (5 años)', tipo: 'pantalla', pantalla: 'plazos', col: 4, fila: 1.35, nuevo: true,
-            nota: 'El papel original se guarda 5 años y el sistema avisa al cumplirse el plazo (supuesto).', construir: 'Calendario de plazos por documento.' },
+          { id: 'plazos', nombre: 'Plazos de conservación', tipo: 'pantalla', pantalla: 'plazos', col: 4, fila: 1.35, nuevo: true,
+            nota: 'El papel original se guarda el plazo que confirme el despacho (5 años, supuesto; 10 si aplica la ley de blanqueo) y el sistema avisa al cumplirse; nada se destruye sin revisarlo.', construir: 'Calendario de plazos por documento.' },
           { id: 'cajas', nombre: 'Cajas de archivo', tipo: 'impresora', pantalla: 'cajas-pant', col: 4, fila: 2.7, nuevo: true,
-            nota: 'El papel original, ya escaneado, va a cajas de archivo fuera del despacho.', construir: 'Archivo externo con cajas rotuladas.' },
+            nota: 'El papel original va a cajas de archivo fuera del despacho, con índice (caja y expediente) y contrato de confidencialidad; los originales del cliente se le devuelven si los pide.', construir: 'Custodia externa con índice y escaneo bajo pedido.' },
           mod(M.papel, { col: 3, fila: 2.7, quitado: true, quitadoTexto: 'pasa a cajas', nota: 'Desaparecen las repisas llenas: el papel se va a cajas de archivo.' }),
           mod(M.copiadora, { col: 1, fila: 2.7, quitado: true, quitadoTexto: 'se quita' }),
           mod(M.correo, { col: 0, fila: 2.7, quitado: true, quitadoTexto: 'se quita', nota: 'Desaparecen los adjuntos: todo vive en el expediente.' })],

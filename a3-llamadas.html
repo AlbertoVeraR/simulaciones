@@ -1329,7 +1329,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
 // (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, probar (etiqueta «POR PROBAR»), quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1505,7 +1505,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       hit.userData.modulo = def.id;
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
-      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo && !def.probar ? '<i class="tag-nuevo">NUEVO</i>' : '') + (def.probar ? '<i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') +
         (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
@@ -1885,7 +1885,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button>' +
       '<small class="sobre">' + esc(u.G.textoPantalla || 'Cómo se vería en el ordenador') + '</small>' +
-      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
+      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.probar ? ' <i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
       '<div class="mm-pantalla">' + SIM.Pantallas.html(spec) + '</div>' +
       (d.nota ? '<p class="mm-nota"><b>Qué hace:</b> ' + esc(d.nota) + '</p>' : '') +
       (d.construir ? '<p class="mm-nota"><b>Para construirlo:</b> ' + esc(d.construir) + '</p>' : '');
@@ -2739,7 +2739,7 @@ SIM.escena = function (K, M) {
       { tipo: 'campos', filas: [['Cliente', 'Rosa Delgado'], ['Hueco', 'Mañana 10:00', 'verde']] },
       { tipo: 'aviso', texto: 'A mano, mirando la agenda', tono: 'ambar' }] },
     // Mejorado
-    'asistente-voz': { app: 'Asistente de voz', titulo: 'Contesta a los 4 tonos', color: NUEVO, bloques: [
+    'asistente-voz': { app: 'Asistente de voz', titulo: 'Contesta si nadie coge', color: NUEVO, bloques: [
       { tipo: 'llamada', numero: '611 23 45 67', estado: 'Contestada · se graba', tono: 'verde' },
       { tipo: 'campos', filas: [['Nombre', 'Rosa Delgado', 'verde'], ['Motivo', 'Accidente de tráfico', 'verde']] }] },
     'wa-aviso': { marco: 'movil', app: 'WhatsApp', titulo: 'Aviso a Marcos', bloques: [{ tipo: 'chat', mensajes: [{ texto: WM, hora: '10:01' }] }] },
@@ -2804,7 +2804,7 @@ SIM.escena = function (K, M) {
     agenda: { id: 'agenda', nombre: 'Agenda', tipo: 'pantalla', pantalla: 'agenda', nota: 'Marcos busca un hueco y se lo dice al cliente; si es laboral, llama a Lucía.' },
   };
   const mod = (base, extra) => Object.assign({}, base, extra);
-  const SIEMPRE = 'Se hace siempre, en los tres escenarios (supuesto, sin confirmar con el despacho): un abogado llama antes de aceptar el caso; el asistente no da consejo jurídico ni precio; avisa de que es automático y de que se graba; y de salud solo pregunta si fue a urgencias (datos mínimos).';
+  const SIEMPRE = 'Se hace siempre, en los tres escenarios (supuesto, sin confirmar con el despacho): un abogado llama antes de aceptar el caso; el asistente no da consejo jurídico ni precio; avisa de que es automático y de que se graba; y de salud solo pregunta si fue a urgencias (datos mínimos); solo atiende a quien llama, nunca llama él, y los datos se quedan en la UE.';
 
   SIM.guion = {
     id: 'a3-llamadas', caso: 'A3', titulo: 'Agente telefónico de captación', trabajadora: 'marcos', negocio: 'Olmedo & Vidal Abogados',
@@ -2841,6 +2841,7 @@ SIM.escena = function (K, M) {
         '¿Cuántos clientes nuevos al mes entran por teléfono?',
         '¿Cuánto vale de media un caso de tráfico?',
         '¿También os escriben por la web o por WhatsApp?'] },
+      { titulo: 'Vuestro teléfono', items: ['¿Qué operador tiene el fijo (Movistar, Vodafone, Orange…) y tenéis centralita?', '¿Os parece bien desviar al asistente las llamadas sin contestar, o llevar el número a una centralita virtual?', '¿Quién más llama además de posibles clientes (clientes actuales, juzgados, procuradores, aseguradoras)?', '¿Lleváis la agenda en papel, en Google o en Outlook?'] },
       { titulo: 'Lo que se hace siempre', items: [
         '¿Qué hacéis siempre, aunque se automatice?',
         '¿Qué no es así en vuestro despacho?'] },
@@ -2912,11 +2913,11 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['libreta', 'agenda'], manual: ['agenda'] }, acciones: JF().concat(cita()) },
         ] },
       // ===================== MEJORADO =====================
-      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su teléfono de siempre', color: '#f2a516',
-        cierre: 'Con un asistente de voz que contesta a los 4 tonos y un aviso por WhatsApp, sin cambiar de teléfono ni de programa, una llamada baja de 16 a 9 minutos y solo se pierde un 5 % (quien cuelga al oír la máquina). ' + SIEMPRE,
+      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su teléfono de siempre · desvío por probar', color: '#f2a516',
+        cierre: 'Con un asistente de voz que contesta si nadie coge en unos 15 segundos y un aviso por WhatsApp, sin cambiar de teléfono ni de programa (el desvío del fijo se prueba el primer día), una llamada baja de 16 a 9 minutos y solo se pierde un 5 % (quien cuelga al oír la máquina). ' + SIEMPRE,
         modulos: [mod(M.telefono, { col: 0, fila: 0 }),
-          { id: 'asistente', nombre: 'Asistente de voz', tipo: 'telefono', pantalla: 'asistente-voz', col: 0, fila: 1.35, nuevo: true,
-            nota: 'Contesta a los 4 tonos si Marcos no coge, avisa de que es automático y que se graba, y toma nombre, teléfono y motivo.', construir: 'Asistente de voz con IA conectado al teléfono actual (desvío a los 4 tonos).' },
+          { id: 'asistente', probar: true, nombre: 'Asistente de voz', tipo: 'telefono', pantalla: 'asistente-voz', col: 0, fila: 1.35, nuevo: true,
+            nota: 'Contesta si Marcos no coge en unos 15 segundos (3 o 4 tonos), avisa de que es automático y que se graba, y toma nombre, teléfono y motivo. Depende del desvío del fijo: se prueba el primer día; si no, el número pasa a una centralita virtual.', construir: 'Asistente de voz con IA y datos en la UE, con desvío del fijo si no contesta.' },
           { id: 'aviso', nombre: 'Aviso por WhatsApp', tipo: 'movil', pantalla: 'wa-aviso', col: 1, fila: 1.35, nuevo: true,
             nota: 'Marcos recibe en su móvil el nombre, el teléfono y el motivo de cada llamada que entró.', construir: 'Mensaje de WhatsApp a Marcos con los datos de la llamada.' },
           mod(M.libreta, { col: 2, fila: 1.35, nota: 'Marcos copia los datos del WhatsApp a la libreta; sigue habiendo papel.' }),
@@ -2929,7 +2930,7 @@ SIM.escena = function (K, M) {
             haciendo: { rosa: 'Llama al despacho desde la acera.', marcos: 'Reunido con Javier.', javier: 'En reunión con Marcos.' },
             monitor: { ruta: ['telefono'], manual: ['telefono'] }, acciones: accidente(false) },
           { titulo: 'Contesta el asistente de voz', quien: 'Asistente automático', donde: 'Teléfono', min: 0, modo: 'auto', hora: '10:01', dur: 20, foto: 0.85,
-            texto: 'A los 4 tonos contesta el asistente de voz: avisa de que es automático y que se graba, y toma el nombre, el teléfono y el motivo.', mejoras: ['Ninguna llamada sin respuesta'], estado: 'Atendida por el asistente', tonoEstado: 'mejora', personas: ['rosa', 'marcos'],
+            texto: 'Si nadie coge en unos 15 segundos, contesta el asistente de voz: avisa de que es automático y que se graba, y toma el nombre, el teléfono y el motivo.', mejoras: ['Ninguna llamada sin respuesta'], estado: 'Atendida por el asistente', tonoEstado: 'mejora', personas: ['rosa', 'marcos'],
             haciendo: { rosa: 'Cuenta lo que le ha pasado al asistente.', marcos: 'Sigue en su reunión.', javier: 'En reunión con Marcos.' },
             monitor: { ruta: ['telefono', 'asistente'], senales: [['telefono', 'asistente']] },
             acciones: R0('llamada-rosa').concat(REU()).concat([
@@ -2968,17 +2969,17 @@ SIM.escena = function (K, M) {
             monitor: { ruta: ['libreta', 'agenda'], manual: ['agenda'] }, acciones: JF().concat(cita()) },
         ] },
       // ===================== ÓPTIMO =====================
-      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin', color: '#1fb57a',
-        cierre: 'Con un agente que contesta al primer tono las 24 horas, pregunta según el tipo de caso, reparte entre Marcos y Lucía, pone la cita en la agenda y avisa a las dos partes, una llamada baja de 16 a 4 minutos (los de la llamada de Marcos). ' + SIEMPRE,
+      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin · desvío por probar', color: '#1fb57a',
+        cierre: 'Con un agente que contesta al primer tono las 24 horas, pregunta según el tipo de caso, reparte entre Marcos y Lucía, pone la cita en la agenda y avisa a las dos partes, una llamada baja de 16 a 4 minutos (los de la llamada de Marcos). Para contestar al primer tono hay que desviar todas las llamadas o llevar el número a una centralita virtual; a clientes actuales y juzgados los pasa a Marcos. ' + SIEMPRE,
         modulos: [mod(M.telefono, { col: 0, fila: 0 }),
-          { id: 'voz', nombre: 'Asistente comercial de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 0, fila: 1.35, nuevo: true,
-            nota: 'Contesta al primer tono, a cualquier hora, y avisa de que es automático y se graba. No da consejo jurídico ni precio.', construir: 'Agente de voz con IA con un guion corto y datos mínimos.' },
+          { id: 'voz', probar: true, nombre: 'Asistente comercial de voz', tipo: 'telefono', pantalla: 'llamada-ia', col: 0, fila: 1.35, nuevo: true,
+            nota: 'Contesta al primer tono, a cualquier hora, y avisa de que es automático y se graba. No da consejo jurídico ni precio; a clientes actuales, juzgados y procuradores los pasa a Marcos o les toma el recado. Depende de desviar todas las llamadas o de una centralita virtual.', construir: 'Agente de voz con IA y datos en la UE, con un guion corto y datos mínimos.' },
           { id: 'preguntas', nombre: 'Preguntas por tipo de caso', tipo: 'nodo', pantalla: 'preguntas-tipo', col: 1, fila: 1.35, nuevo: true,
             nota: 'Pregunta si es tráfico, despido, herencia o divorcio y hace siempre las mismas preguntas de ese tipo.', construir: 'Guion de preguntas por tipo de caso; de salud solo urgencias sí o no.' },
           { id: 'reparto', nombre: 'Reparto: tráfico a Marcos, laboral a Lucía', tipo: 'nodo', pantalla: 'reparto', col: 2, fila: 1.35, nuevo: true,
             nota: 'Cada tipo de caso va a quien lo lleva. Reparto de ejemplo, a confirmar con el despacho.', construir: 'Regla de reparto por tipo de caso.' },
           { id: 'agenda', nombre: 'Agenda conectada', tipo: 'pantalla', pantalla: 'agenda-opt', col: 3, fila: 1.35, nuevo: true,
-            nota: 'El agente pone la cita en la agenda del abogado y crea la ficha del caso.', construir: 'Conexión con la agenda (Google Calendar, Outlook).' },
+            nota: 'El agente ofrece las franjas libres de la agenda del abogado, pone la cita y crea la ficha del caso; sin agenda digital, Marcos confirma la franja por WhatsApp.', construir: 'Conexión con la agenda (Google Calendar, Outlook).' },
           { id: 'whatsapp', nombre: 'WhatsApp al cliente', tipo: 'movil', pantalla: 'wa-rosa', col: 3, fila: 2.7, nuevo: true,
             nota: 'Rosa recibe un WhatsApp del asistente automático con la hora de la llamada y lo que debe tener a mano.', construir: 'Plantilla de WhatsApp Business con hora y documentos.' },
           { id: 'lista', nombre: 'Lista de posibles clientes', tipo: 'pantalla', pantalla: 'posibles', col: 2, fila: 2.7, nuevo: true,

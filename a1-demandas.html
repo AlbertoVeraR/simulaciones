@@ -1329,7 +1329,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
 /* motor/monitor.js */
 // monitor.js: vista Monitor. Los módulos del flujo en 3D, unidos por tubos por los que viaja la unidad de trabajo
 // (el encargo, la demanda, la llamada...). Los módulos nuevos brillan con «NUEVO»; los que sobran salen tachados; los opcionales (opcional: true) llevan «OPCIONAL» en gris, sin brillo.
-// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, quitado, pantalla, nota }],
+// Cada escenario del guion trae: modulos [{ id, nombre, tipo, col, fila, nuevo, opcional, probar (etiqueta «POR PROBAR»), quitado, pantalla, nota }],
 // tubos [['a', 'b'], ['c', 'd', 'arco']] y en cada paso monitor: { ruta: [...], senales: [[a, b]], pantallas: { id: pantalla } }.
 // Junto a cada módulo donde se trabaja a mano (pasos modo 'manual'; paso.monitor.manual: [ids] o, si falta, el último de la ruta) se ve una
 // persona pequeña con bata (guion.trabajadora: id del personaje; por defecto el primero); en los automáticos no hay nadie.
@@ -1505,7 +1505,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       hit.userData.modulo = def.id;
       const et = document.createElement('div');
       et.className = 'mod' + (def.nuevo ? ' nuevo' : '') + (def.quitado ? ' quitado' : '');
-      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo ? '<i class="tag-nuevo">NUEVO</i>' : '') +
+      et.innerHTML = '<span class="mod-nombre"></span>' + (def.nuevo && !def.probar ? '<i class="tag-nuevo">NUEVO</i>' : '') + (def.probar ? '<i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') +
         (def.opcional ? '<i class="tag-nuevo" style="background:#8a95a8;box-shadow:none;animation:none">OPCIONAL</i>' : '') +
         (def.quitado ? '<i class="tag-quitado">' + SIM.Pantallas.esc(def.quitadoTexto || 'se quita') + '</i>' : '') + '<em class="mod-chip"></em>';
       et.querySelector('.mod-nombre').textContent = def.nombre;
@@ -1885,7 +1885,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button>' +
       '<small class="sobre">' + esc(u.G.textoPantalla || 'Cómo se vería en el ordenador') + '</small>' +
-      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
+      '<h3>' + esc(d.nombre) + (d.nuevo ? ' <i class="tag-nuevo">NUEVO</i>' : '') + (d.probar ? ' <i class="tag-nuevo" style="background:#d98a00;box-shadow:none;animation:none">POR PROBAR</i>' : '') + (d.quitado ? ' <i class="tag-quitado">' + esc(d.quitadoTexto || 'se quita') + '</i>' : '') + '</h3>' +
       '<div class="mm-pantalla">' + SIM.Pantallas.html(spec) + '</div>' +
       (d.nota ? '<p class="mm-nota"><b>Qué hace:</b> ' + esc(d.nota) + '</p>' : '') +
       (d.construir ? '<p class="mm-nota"><b>Para construirlo:</b> ' + esc(d.construir) + '</p>' : '');
@@ -2733,8 +2733,8 @@ SIM.escena = function (K, M) {
       { tipo: 'tabla', columnas: ['Documento', 'Origen'], anchos: [0.55, 0.45], filas: [['Informe de urgencias', { t: 'Foto', tono: 'verde' }], ['Atestado', { t: 'WhatsApp', tono: 'verde' }], ['Demanda', { t: 'Borrador', tono: 'azul' }]] },
       { tipo: 'aviso', texto: 'Todo en una sola carpeta', tono: 'verde' }] },
     'borrador': { app: 'Borrador de demanda (IA)', titulo: 'Demanda Ruiz · tráfico', color: NUEVO, bloques: [
-      { tipo: 'texto', texto: 'Hechos y fundamentos redactados a partir de unas 100 demandas parecidas del despacho.' },
-      { tipo: 'campos', filas: [['Cuantía (baremo)', 'Propuesta · por revisar', 'ambar']] },
+      { tipo: 'texto', texto: 'Hechos y fundamentos redactados a partir de unas 100 demandas parecidas del despacho (por probar).' },
+      { tipo: 'campos', filas: [['Cuantía (baremo y pericial)', 'Propuesta · por revisar', 'ambar']] },
       { tipo: 'aviso', texto: 'Marcado para que lo revise el abogado', tono: 'ambar' }] },
     'borrador-revision': { app: 'Borrador de demanda (IA)', titulo: 'Revisión del abogado', color: NUEVO, bloques: [
       { tipo: 'tabla', columnas: ['Apartado', 'La IA'], anchos: [0.6, 0.4], filas: [['Datos del cliente', { t: 'Seguro', tono: 'verde' }], ['Hechos', { t: 'Seguro', tono: 'verde' }], ['Fundamento 3', { t: 'Revisar', tono: 'ambar' }], ['Cuantía', { t: 'Revisar', tono: 'ambar' }]] },
@@ -2807,6 +2807,8 @@ SIM.escena = function (K, M) {
     preguntas: [
       { titulo: 'Volumen y coste', items: ['¿Cuántas demandas al mes y cuánto pagáis por cada una?', '¿Cuántas plantillas hay por tipo de caso? ¿Qué parte se redacta a mano y cuánto ocupa?'] },
       { titulo: 'Documentos', items: ['¿Qué documentos entran además del informe médico (atestado, parte amistoso, póliza, informe de secuelas)?', '¿Hay reclamación previa a la aseguradora antes de la demanda?', '¿Podéis darnos 3 a 5 demandas con su informe médico, anonimizadas?'] },
+      { titulo: 'Antes de la demanda', items: ['¿Con qué informe calculáis la cuantía: el de alta, el de sanidad o uno pericial?', '¿Cómo acreditáis el intento de negociación (MASC) que se pide desde abril de 2025?', '¿Os serviría que la IA prepare también la reclamación previa a la aseguradora con los mismos datos?'] },
+      { titulo: 'Demandas anteriores y pago', items: ['¿Las demandas anteriores están en Word? ¿Las tenéis vosotros o los abogados externos?', '¿Los abogados externos trabajarían sobre un borrador de la IA, revisado y firmado por ellos?', '¿Cambiaría el precio por demanda si llega casi redactada?', '¿Usáis algún programa de gestión (Lexon, Sudespacho, Kleos, Aranzadi Fusión…), Microsoft 365 o Google?'] },
       { titulo: 'Lo que se hace siempre', items: ['¿Quién hace la entrevista, quién firma y quién presenta en LexNET?', '¿Qué no es así en vuestro despacho?'] },
     ],
     textoPantalla: 'Cómo se vería en el ordenador del despacho',
@@ -2882,8 +2884,8 @@ SIM.escena = function (K, M) {
             acciones: presentar(0).concat(archivar(6.2)) },
         ] },
       // ===================== MEJORADO =====================
-      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su Word de siempre', color: '#f2a516',
-        cierre: 'Una foto del informe y una IA que lo lee rellenan la plantilla de Word: se acaba el copiado a mano y bajan los errores; la redacción sigue igual.',
+      { id: 'mejorado', nombre: 'Mejorado', lema: 'con su Word de siempre · se puede hoy', color: '#f2a516',
+        cierre: 'Una foto del informe y una IA que lo lee rellenan la plantilla de Word: se acaba el copiado a mano y bajan los errores; la redacción sigue igual. El tiempo ahorrado es sobre todo de la abogada externa: el despacho lo nota si cambia el precio por demanda o si se hacen más demandas.',
         modulos: [mod(M.papel, { col: 0, fila: 0 }),
           { id: 'foto', nombre: 'Foto del móvil', tipo: 'movil', pantalla: 'movil-camara', col: 1, fila: 0, nuevo: true,
             nota: 'Marcos hace una foto del informe con el móvil mientras habla con el cliente.', construir: 'Un formulario o chat al que Marcos manda la foto desde el móvil.' },
@@ -2936,24 +2938,24 @@ SIM.escena = function (K, M) {
             acciones: presentar(0).concat(archivar(6.2)) },
         ] },
       // ===================== ÓPTIMO =====================
-      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin', color: '#1fb57a',
-        cierre: 'La IA lee el informe, pide por WhatsApp lo que falta, arma el expediente y deja un borrador completo; el abogado solo revisa lo marcado, firma y presenta a mano. Se mantiene: entrevista en persona, revisión y firma de un abogado, presentación en LexNET y el original en papel (supuesto, sin confirmar con el despacho).',
+      { id: 'optimo', nombre: 'Óptimo', lema: 'conectado de principio a fin · parte por probar', color: '#1fb57a',
+        cierre: 'La IA lee el informe, pide por WhatsApp lo que falta, arma el expediente y deja un borrador completo; el abogado solo revisa lo marcado, firma y presenta a mano. Se mantiene: entrevista en persona, revisión y firma de un abogado, presentación en LexNET y el original en papel (supuesto, sin confirmar con el despacho). Por probar: la redacción con vuestras demandas anteriores y la cuantía, que sale del informe pericial. Antes de la demanda van la reclamación previa a la aseguradora y el intento de negociación (MASC): aquí ya están en el expediente. El tiempo ahorrado es sobre todo de la abogada externa.',
         modulos: [mod(M.papel, { col: 0, fila: 0 }),
           { id: 'foto', nombre: 'Foto del móvil', tipo: 'movil', pantalla: 'movil-camara', col: 1, fila: 0, nuevo: true,
             nota: 'Marcos hace una foto del informe con el móvil mientras habla con el cliente.', construir: 'Un formulario o chat al que Marcos manda la foto desde el móvil.' },
           { id: 'lectura', nombre: 'Lectura del informe (IA)', tipo: 'nodo', pantalla: 'lectura-faltan', col: 2, fila: 0, nuevo: true,
             nota: 'La IA lee el informe y comprueba qué documentos del caso faltan.', construir: 'IA que lee la foto y compara con la lista de documentos de una demanda de tráfico.' },
-          { id: 'faltan', nombre: 'Pide lo que falta', tipo: 'movil', pantalla: 'whatsapp-1', col: 3, fila: 0, nuevo: true,
-            nota: 'Un asistente automático (se presenta como tal) pide por WhatsApp al cliente lo que falta; él manda la foto desde donde esté.', construir: 'Plantilla de WhatsApp Business y una regla que lee la respuesta con la foto.' },
+          { id: 'faltan', probar: true, nombre: 'Pide lo que falta', tipo: 'movil', pantalla: 'whatsapp-1', col: 3, fila: 0, nuevo: true,
+            nota: 'Un asistente automático (se presenta como tal) pide por WhatsApp al cliente lo que falta; él manda la foto desde donde esté (para documentos delicados, un enlace de subida seguro). Lista de tráfico: atestado, informe de alta o pericial, reclamación previa con la oferta de la aseguradora e intento de negociación (MASC).', construir: 'Plantilla de WhatsApp Business, la lista de documentos por tipo de caso y una regla que lee la respuesta con la foto.' },
           mod(M.lexnet, { col: 0, fila: 1.35, nota: 'La abogada firma y presenta a mano en LexNET. Es lo que se hace siempre.' }),
           { id: 'borrador', nombre: 'Borrador para revisar', tipo: 'pantalla', pantalla: 'borrador-revision', col: 1, fila: 1.35, nuevo: true,
             nota: 'Lucía ve marcado lo que la IA no da por seguro y revisa solo eso con calma.', construir: 'Vista del borrador con marcas de confianza por apartado.' },
-          { id: 'redaccion', nombre: 'Redacción con demandas históricas', tipo: 'nodo', pantalla: 'borrador', col: 2, fila: 1.35, nuevo: true,
-            nota: 'Redacta la parte libre a partir de unas 100 demandas parecidas del despacho y propone la cuantía según el baremo de tráfico, marcada para revisar.', construir: 'IA con las demandas anteriores del despacho como ejemplos y la tabla del baremo.' },
+          { id: 'redaccion', probar: true, nombre: 'Redacción con demandas históricas', tipo: 'nodo', pantalla: 'borrador', col: 2, fila: 1.35, nuevo: true,
+            nota: 'Redacta la parte libre a partir de unas 100 demandas parecidas del despacho y propone la cuantía con el baremo de tráfico de 2026 y el informe pericial, marcada para revisar. Depende de tener esas demandas en Word; si no, bloques de hechos y fundamentos fijos por tipo de caso.', construir: 'IA en servidores de la UE con las demandas anteriores del despacho (anonimizadas) como ejemplos y las tablas del baremo del BOE.' },
           { id: 'expediente', nombre: 'Expediente digital', tipo: 'pantalla', pantalla: 'expediente', col: 3, fila: 1.35, nuevo: true,
             nota: 'Una carpeta «2026-041 Ruiz · Tráfico» con todos los documentos del caso.', construir: 'Carpeta en la nube con nombre automático por año, número y cliente.' },
           { id: 'agenda', nombre: 'Agenda de plazos', tipo: 'pantalla', pantalla: 'agenda', col: 0, fila: 2.7, nuevo: true,
-            nota: 'Al presentar, el plazo siguiente queda en la agenda con su aviso.', construir: 'Calendario con avisos creados al presentar la demanda.' },
+            nota: 'Al marcar la demanda como presentada, el plazo siguiente queda en la agenda con su aviso (LexNET no se conecta: no tiene API para terceros).', construir: 'Calendario con avisos que se crean al marcar la demanda como presentada.' },
           mod(M.correo, { col: 1, fila: 2.7, quitado: true, quitadoTexto: 'se quita', nota: 'Desaparecen los correos de ida y vuelta: todo vive en el expediente.' }),
           mod(M.word, { col: 2, fila: 2.7, quitado: true, quitadoTexto: 'se quita', nombre: 'Copia a mano a la plantilla', nota: 'Desaparece el copiado a mano de los datos.' })],
         tubos: [['papel', 'foto'], ['foto', 'lectura'], ['lectura', 'faltan'], ['lectura', 'expediente'], ['faltan', 'expediente'], ['expediente', 'redaccion'], ['redaccion', 'borrador'], ['borrador', 'lexnet'], ['lexnet', 'agenda'], ['lexnet', 'papel', 'arco']],
@@ -2963,7 +2965,7 @@ SIM.escena = function (K, M) {
             haciendo: { marcos: 'Hace la entrevista y fotografía el informe.', javier: 'Cuenta el accidente y entrega el informe de urgencias.' },
             monitor: { ruta: ['papel', 'foto'], manual: ['foto'] }, acciones: recibir(true) },
           { titulo: 'La IA lee el informe y ve lo que falta', quien: 'Automático', donde: 'Ordenador de Marcos y móvil del cliente', min: 0, modo: 'auto', hora: '10:15', dur: 24, foto: 0.45,
-            texto: 'La IA lee el informe y detecta que falta el atestado. Un asistente automático le escribe a Javier por WhatsApp y él manda la foto desde fuera.', mejoras: ['WhatsApp automático pidiendo el atestado', 'El cliente manda la foto desde fuera'], estado: 'Falta el atestado', tonoEstado: 'mejora', personas: ['marcos', 'javier'],
+            texto: 'La IA lee el informe, repasa la lista de tráfico y detecta que falta el atestado. Un asistente automático le escribe a Javier por WhatsApp y él manda la foto desde fuera.', mejoras: ['WhatsApp automático pidiendo el atestado', 'El cliente manda la foto desde fuera'], estado: 'Falta el atestado', tonoEstado: 'mejora', personas: ['marcos', 'javier'],
             haciendo: { marcos: 'Sigue con su trabajo mientras la IA pide lo que falta.', javier: 'Recibe el WhatsApp y manda la foto del atestado.' },
             monitor: { ruta: ['foto', 'lectura', 'faltan'], senales: [['lectura', 'faltan']] },
             acciones: [
@@ -2984,7 +2986,7 @@ SIM.escena = function (K, M) {
               [5.4, 'toma', 'mesa'], [6.0, 'hacer', 'marcos', 'hablar'], [6.1, 'decir', 'marcos', 'Todos los documentos, en su carpeta.', 2.6],
             ] },
           { titulo: 'Borrador completo', quien: 'Automático', donde: 'Oficina de Lucía', min: 0, modo: 'auto', hora: '10:17', dur: 15, foto: 0.4,
-            texto: 'La IA redacta la parte libre a partir de unas 100 demandas parecidas del despacho y propone la cuantía según el baremo de tráfico, marcada para revisar.', mejoras: ['Parte libre redactada', 'Cuantía propuesta para revisar'], estado: 'Borrador listo', tonoEstado: 'mejora', personas: ['lucia'],
+            texto: 'La IA redacta la parte libre a partir de unas 100 demandas parecidas del despacho y propone la cuantía con el baremo y el informe pericial, marcada para revisar (por probar).', mejoras: ['Parte libre redactada', 'Cuantía propuesta para revisar'], estado: 'Borrador listo', tonoEstado: 'mejora', personas: ['lucia'],
             haciendo: { lucia: 'Recibe el borrador completo.', marcos: 'Atiende otros asuntos.' },
             monitor: { ruta: ['expediente', 'redaccion', 'borrador'], senales: [['expediente', 'redaccion'], ['redaccion', 'borrador']], pantallas: { faltan: 'whatsapp-2' } },
             acciones: [
@@ -3001,7 +3003,7 @@ SIM.escena = function (K, M) {
               [1.4, 'marca', 'mejora', 'pcLucia', 'Ve marcado lo que la IA no da por seguro', 4.8], [6.6, 'toma', 'lucia'], [7.0, 'decir', 'lucia', 'Reviso la cuantía y el fundamento 3.', 2.6],
             ] },
           { titulo: 'Firmar y presentar', quien: 'Lucía', donde: 'Oficina de Lucía y estantería', min: 10, modo: 'manual', hora: '11:00', dur: 18, foto: 0.4,
-            texto: 'Igual que hoy: Lucía firma y presenta en LexNET y el original va a la estantería. El plazo queda en la agenda.', mejoras: ['El plazo queda en la agenda'], estado: 'Presentada', tonoEstado: 'mejora', personas: ['lucia', 'marcos'],
+            texto: 'Igual que hoy: Lucía firma y presenta en LexNET y el original va a la estantería. Al marcarla presentada, el plazo queda en la agenda.', mejoras: ['El plazo queda en la agenda'], estado: 'Presentada', tonoEstado: 'mejora', personas: ['lucia', 'marcos'],
             haciendo: { lucia: 'Firma y presenta en LexNET.', marcos: 'Guarda el original en la estantería; la agenda ya tiene el plazo.' },
             monitor: { ruta: ['borrador', 'lexnet', 'papel'], manual: ['lexnet'], senales: [['lexnet', 'agenda']], pantallas: { faltan: 'whatsapp-2' } },
             acciones: presentar(0, [[4.6, 'pantalla', 'pcMarcos', 'agenda'], [4.7, 'toma', 'pantallaMarcos'], [4.8, 'marca', 'mejora', 'pcMarcos', 'El plazo queda en la agenda', 3.2]]).concat(archivar(8.2)) },
