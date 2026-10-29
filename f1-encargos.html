@@ -3019,9 +3019,11 @@ SIM.escena = function (K, M) {
         '¿Qué programa de gestión usáis (Bitfarma, Farmatic, Nixfarma, Unycop…), qué versión y quién os da soporte?',
         '¿Nos mandáis fotos del programa (ventanita de encargos, recepción con la «E» y ficha de cliente), tapando los datos de clientes?',
         '¿Con qué almacenes trabajáis, cuántos pedidos os llegan al día y cómo pedís (webs de los almacenes o el programa)?',
-        'Al recibir el pedido, ¿cómo sabéis qué producto es de un encargo?'] },
+        'Al recibir el pedido, ¿cómo sabéis qué producto es de un encargo?',
+        '¿Tenéis robot de dispensación? ¿Cuál, y avisa él de los encargos?'] },
       { titulo: 'El aviso al cliente', items: [
         '¿Cómo avisáis hoy (llamada, WhatsApp, SMS) y desde qué teléfono? ¿Tenéis ya WhatsApp en la farmacia?',
+        '¿Vuestro programa ya avisa al cliente cuando llega el encargo? ¿Solo o hay que pulsar un botón? ¿Por SMS, WhatsApp o app? ¿Le recuerda si no lo recoge?',
         '¿Tenéis un número (una SIM) solo para los avisos o hay que sacarlo?',
         '¿Cuántas veces hay que volver a llamar porque no contesta?',
         '¿Cuántos de vuestros clientes son mayores o extranjeros? ¿En qué idiomas os vendría bien avisar?',
@@ -3278,7 +3280,7 @@ SIM.escena = function (K, M) {
 })();
 
 </script>
-<script>SIM.casos = null;</script>
+<script>SIM.casos = [{"codigo": "F1", "titulo": "Encargos", "archivo": "f1-encargos.html", "activo": true, "actual": true}, {"codigo": "F8", "titulo": "Promociones", "archivo": "f8-promociones.html", "activo": true, "actual": false}, {"codigo": "F9", "titulo": "Recetas", "archivo": "f9-recetas.html", "activo": true, "actual": false}];</script>
 <script>SIM.arrancar();</script>
 </body>
 </html>
