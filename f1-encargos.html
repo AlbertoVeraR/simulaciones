@@ -425,6 +425,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
 .limites ul, .res-limites ul { margin: 7px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.4; color: #3d4860; }
 .limites li, .res-limites li { margin: 0 0 5px; }
 .res-limites { margin: 12px 0 0; padding: 10px 12px 6px; border-radius: 14px; background: #f4f7fb; }
+.nota-gris { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: #8f9ab0; }   /* S66: aviso gris bajo los errores del Mejorado */
+.resumen-card { max-height: calc(100% - 24px); overflow-y: auto; }   /* S66: con límites el resumen puede no caber */
 
 </style>
 </head>
@@ -1913,7 +1915,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(M, '.modal-card').innerHTML =
       '<button class="cerrar" data-cerrar aria-label="Cerrar">×</button><h3>Supuestos</h3><p class="sub">Cambia los valores y las cifras se recalculan al momento. Todas son <b>estimación</b>.</p>' +
       '<div class="sup-campos">' + campo('volumen', S.volumen.etiqueta, v.volumen, 1) + (S.dias ? campo('dias', S.dias.etiqueta, v.dias, 1) : '') + campo('coste', S.coste.etiqueta, v.coste, 0.5) + '</div>' +
-      '<fieldset><legend>' + esc(S.errores.etiqueta) + '</legend>' + G.escenarios.map(e => campo('err-' + e.id, e.nombre, v.errores[e.id], 0.1)).join('') + '</fieldset>' +
+      '<fieldset><legend>' + esc(S.errores.etiqueta) + '</legend>' + G.escenarios.map(e => campo('err-' + e.id, e.nombre, v.errores[e.id], 0.1)).join('') + '</fieldset>' + G.escenarios.filter(e => e.avisoErrores).map(e => '<p class="nota-gris">(' + esc(e.nombre) + ': ' + esc(e.avisoErrores) + ')</p>').join('') +
       '<table class="sup-tabla"><thead><tr><th>Escenario</th><th>Min por ' + esc(G.unidad.una) + '</th><th>Horas al mes</th><th>' + esc((G.indicadores && G.indicadores.errores) || 'Errores al mes') + '</th><th>Ahorro al mes</th></tr></thead><tbody>' + filas + '</tbody></table>' +
       '<p class="formulas">' + esc(G.formulas || '') + '</p>' +
       '<div class="sup-botones"><button data-accion="restablecer">Restablecer</button><button class="prin" data-cerrar>Listo</button></div>';
@@ -2001,7 +2003,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     $(R, '.resumen').innerHTML = '<div class="resumen-card"><button class="cerrar" data-accion="cerrar" aria-label="Cerrar" title="Cerrar">×</button><small class="sobre">Resumen del escenario</small><h2><i style="background:' + e.color + '"></i>' + esc(e.nombre) + (e.lema ? ' · ' + esc(e.lema) : '') + '</h2>' +
       '<table><thead><tr><th></th><th>Hoy</th>' + (base ? '' : '<th>' + esc(e.nombre) + '</th>') + '</tr></thead><tbody>' +
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
-      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
+      fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' + (e.avisoErrores ? '<p class="nota-gris">(' + esc(e.avisoErrores) + ')</p>' : '') +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
         : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '') + u.htmlLimites(e, 'res-limites')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
@@ -2299,6 +2301,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     else s.irA(0, 0, !pausa);
     if (h.get('resumen') === '1') { s.irA(s.pasos.length - 1, 1, false); s.ui.fin(); }
     if (h.get('preguntas') === '1' && s.G.preguntas && s.ui.abrirPreguntas) s.ui.abrirPreguntas();
+    if (h.get('supuestos') === '1' && s.ui.abrirSupuestos) s.ui.abrirSupuestos();   // S66
     if (h.get('limites') === '1' && s.ui.fichaLimites) setTimeout(() => s.ui.fichaLimites(s.ui.raiz.querySelector('.tarjeta[data-k="errores"]')), 400);   // S66
     s.escribiendo = false; s.escribirHash();
   };
