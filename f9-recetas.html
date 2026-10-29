@@ -416,6 +416,16 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .con-casos .toast { top: 206px; }
 }
 
+/* S66: límites del indicador de errores (tarjeta, ficha y resumen) */
+.tarjeta.con-limites { cursor: pointer; }
+.tarjeta.con-limites em { text-decoration: underline dotted; text-underline-offset: 2px; }
+.ficha-persona.ancha { width: 360px; max-width: calc(100% - 16px); }
+.limites b, .res-limites b { display: block; font-size: 14.5px; }
+.limites small, .res-limites small { display: block; margin-top: 3px; color: var(--suave); font-size: 12px; }
+.limites ul, .res-limites ul { margin: 7px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.4; color: #3d4860; }
+.limites li, .res-limites li { margin: 0 0 5px; }
+.res-limites { margin: 12px 0 0; padding: 10px 12px 6px; border-radius: 14px; background: #f4f7fb; }
+
 </style>
 </head>
 <body>
@@ -1737,6 +1747,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       ['horas', 'horas', I.horas || 'Horas al mes'], ['errores', 'errores', I.errores || 'Errores al mes'], ['ahorro', 'ahorro', I.ahorro || 'Ahorro al mes'],
     ];
     $(R, '.tarjetas').innerHTML = tarjetas.map(t => '<div class="tarjeta" data-k="' + t[0] + '"><i class="ico">' + ICO[t[1]] + '</i><div><small>' + esc(t[2]) + '</small><p><b>·</b><span class="estim">estimación</span></p><em></em></div></div>').join('');
+    $(R, '.tarjeta[data-k="errores"]').addEventListener('click', ev => { ev.stopPropagation(); u.fichaLimites(ev.currentTarget); });
     // Controles
     $(R, '.b-prev').addEventListener('click', () => s.pasoRelativo(-1));
     $(R, '.b-play').addEventListener('click', () => s.jugar());
@@ -1802,7 +1813,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
     pon('manuales', r.manuales, base ? 'hoy' : (r.manuales - b.manuales) + ' frente a hoy', base ? null : r.manuales < b.manuales);
     pon('min', n1(r.min) + ' min', base ? 'hoy' : 'antes ' + n1(b.min) + ' min', base ? null : true);
     pon('horas', n1(r.horas) + ' h', base ? n1(r.unidades) + ' ' + (G.unidad.varias || '') + ' al mes' : '−' + n1(r.ahorroH) + ' h al mes', base ? null : true);
-    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n0(b.errores), base ? null : true);
+    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : (e.notaErrores || 'antes ' + n0(b.errores)), base ? null : true);
+    $(u.raiz, '.tarjeta[data-k="errores"]').classList.toggle('con-limites', !!e.limites);   // S66: toca la tarjeta para ver los límites del escenario
     pon('ahorro', base ? '0 €' : n0(r.ahorro) + ' €', base ? 'punto de partida' : n0(r.ahorro * 12) + ' € al año', base ? null : true);
   };
 
@@ -1960,10 +1972,22 @@ canvas.lienzo3d:active { cursor: grabbing; }
   P.fichaPersona = function (p, x, y) {
     if (!p) return;
     const u = this, f = $(u.raiz, '.ficha-persona'), d = p.def, que = u.sim.queHace(p.id);
-    f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
+    f.classList.remove('ancha'); f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
     f.hidden = false;
     const W = u.raiz.clientWidth, w = f.offsetWidth, h = f.offsetHeight;
     f.style.left = Math.max(8, Math.min(W - w - 8, x - w / 2)) + 'px'; f.style.top = Math.max(8, y - h - 14) + 'px';
+  };
+  // S66: límites del indicador de errores del escenario (`limites: { titulo, intro, items }` y `notaErrores` en el guion)
+  P.htmlLimites = function (e, clase) {
+    const L = e && e.limites; if (!L) return '';
+    return '<div class="' + clase + '"><b>' + esc(L.titulo) + '</b>' + (L.intro ? '<small>' + esc(L.intro) + '</small>' : '') + '<ul>' + L.items.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+  };
+  P.fichaLimites = function (t) {
+    const u = this, e = u.sim.esc, f = $(u.raiz, '.ficha-persona'); if (!t || !e || !e.limites) return;
+    if (!f.hidden && f.classList.contains('ancha')) { f.hidden = true; return; }
+    f.innerHTML = u.htmlLimites(e, 'limites'); f.classList.add('ancha'); f.hidden = false;
+    const r = t.getBoundingClientRect(), ra = u.raiz.getBoundingClientRect(), W = u.raiz.clientWidth, w = f.offsetWidth;
+    f.style.left = Math.max(8, Math.min(W - w - 8, r.left - ra.left + r.width / 2 - w / 2)) + 'px'; f.style.top = (r.bottom - ra.top + 8) + 'px';
   };
   P.cerrarFicha = function () { const f = $(this.raiz, '.ficha-persona'); if (f) f.hidden = true; };
   P.cerrarTodo = function () { this.raiz.querySelectorAll('.modal').forEach(m => { m.hidden = true; }); this.cerrarFicha(); };
@@ -1979,7 +2003,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
       fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
-        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '')) +
+        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '') + u.htmlLimites(e, 'res-limites')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
       '<p class="nota">' + esc(G.notaDatos || 'Simulación con datos ficticios · cifras estimadas') + '</p></div>';
     $(R, '.resumen').hidden = false;
@@ -2275,6 +2299,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     else s.irA(0, 0, !pausa);
     if (h.get('resumen') === '1') { s.irA(s.pasos.length - 1, 1, false); s.ui.fin(); }
     if (h.get('preguntas') === '1' && s.G.preguntas && s.ui.abrirPreguntas) s.ui.abrirPreguntas();
+    if (h.get('limites') === '1' && s.ui.fichaLimites) setTimeout(() => s.ui.fichaLimites(s.ui.raiz.querySelector('.tarjeta[data-k="errores"]')), 400);   // S66
     s.escribiendo = false; s.escribirHash();
   };
   P.escribirHash = function () {
@@ -2947,7 +2972,7 @@ SIM.escena = function (K, M) {
       volumen: { etiqueta: 'Tratamientos que vencen al día', valor: 5, periodo: 'dia' },
       dias: { etiqueta: 'Días de trabajo al mes', valor: 24 },
       coste: { etiqueta: 'Coste de una hora (€)', valor: 16 },
-      errores: { etiqueta: 'Vencimientos sin avisar (%)', valores: { actual: 30, mejorado: 5, optimo: 0 } },
+      errores: { etiqueta: 'Vencimientos sin avisar (%)', valores: { actual: 30, mejorado: 0, optimo: 0 } },
     },
     formulas: 'Horas al mes = tratamientos al día × días × minutos por tratamiento ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Vencimientos sin avisar al mes = tratamientos al mes × %. ' + SIEMPRE,
     preguntasTitulo: 'Preguntas para la farmacia',
@@ -3035,6 +3060,13 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== MEJORADO =====================
       { id: 'mejorado', nombre: 'Mejorado', lema: 'sin tocar el programa · se puede hoy', color: '#f2a516',
+        notaErrores: 'objetivo · ver límites',
+        limites: { titulo: 'Objetivo: 0 vencimientos sin avisar', intro: 'Cada paciente dado de alta recibe su aviso. Puede fallar si:', items: [
+          'Empieza un tratamiento nuevo y nadie apunta su fecha. En el Óptimo, cada dispensación se lee sola del programa.',
+          'Una fecha se apunta mal: al darse de alta, el paciente recibe sus fechas para comprobarlas.',
+          'El aviso no llega (cambió de número o no tiene WhatsApp ni SMS): sale en la lista del mostrador para decírselo en persona.',
+          'El paciente no pide la cita: ya está avisado y le llega el recordatorio de los 7 días; renovar es cosa suya y de su médico.',
+        ] },
         cierre: 'Lucía apunta la fecha en una app propia y el aviso sale solo 30 días antes: el paciente pide cita a tiempo y vuelve una sola vez. 1,3 minutos por tratamiento. Se puede hacer hoy con cualquier programa; son datos de salud: consentimiento explícito y evaluación de impacto. ' + SIEMPRE,
         modulos: [mod(M.receta, { col: 0, fila: 0 }), mod(M.gestion, { col: 1, fila: 0 }),
           { id: 'consent', nombre: 'Consentimiento', tipo: 'pantalla', pantalla: 'consentimiento', col: 2, fila: 0, nuevo: true,
@@ -3051,7 +3083,7 @@ SIM.escena = function (K, M) {
             haciendo: { lucia: 'Mira los tres tratamientos en la receta electrónica.', ramirez: 'Pasa su tarjeta sanitaria.' },
             monitor: { ruta: ['receta'], manual: ['receta'] }, acciones: tarjeta('receta', 'Veo sus tres tratamientos; el Tensiolán vence el 28/11.') },
           { titulo: 'Apunta la fecha', quien: 'Lucía', donde: 'Ordenador del mostrador', min: 0.3, modo: 'manual', hora: '10:16', dur: 10, foto: 0.6,
-            texto: 'En la app «Renovaciones» (el Sr. Ramírez firmó una vez en la tablet que acepta los avisos), Lucía marca que un tratamiento vence el 28/11.', mejoras: ['La fecha queda guardada'], estado: 'Por avisar', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
+            texto: 'En la app «Renovaciones» (el Sr. Ramírez firmó una vez en la tablet que acepta los avisos), Lucía apunta las fechas de sus tratamientos y él las recibe para comprobarlas: uno vence el 28/11.', mejoras: ['La fecha queda guardada'], estado: 'Por avisar', tonoEstado: 'mejora', personas: ['lucia', 'ramirez'],
             haciendo: { lucia: 'Marca en la app que el Tensiolán vence el 28/11.', ramirez: 'Ya firmó una vez que acepta los avisos.' },
             monitor: { ruta: ['consent', 'renov'], manual: ['renov'], pantallas: { renov: renov('Por avisar') } },
             acciones: pos().concat([
@@ -3059,7 +3091,7 @@ SIM.escena = function (K, M) {
               [0.8, 'decir', 'lucia', 'Marco que el Tensiolán vence el 28/11.', 2.4], [4.0, 'marca', 'mejora', 'pc1', 'La fecha queda guardada', 3.0],
               [5.6, 'decir', 'ramirez', 'Ya firmé en la tablet que acepto los avisos.', 2.8], [8.8, 'ir', 'ramirez', 'puerta.dentro']]) },
           { titulo: 'Aviso 30 días antes', quien: 'Automático', donde: 'WhatsApp del paciente', min: 0, modo: 'auto', hora: '09:00', dur: 11, foto: 0.5,
-            texto: 'El 29/10 le llega un WhatsApp (o SMS si no tiene) sin nombrar el medicamento; recordatorio 7 días antes si no responde.', mejoras: ['Nadie depende de acordarse'], estado: 'Avisado', tonoEstado: 'mejora', personas: ['ramirez'],
+            texto: 'El 29/10 le llega un WhatsApp (o SMS si no tiene) sin nombrar el medicamento; recordatorio 7 días antes si no responde. Si no se entrega, sale en la lista del mostrador.', mejoras: ['Nadie depende de acordarse'], estado: 'Avisado', tonoEstado: 'mejora', personas: ['ramirez'],
             haciendo: { lucia: 'Atiende en el mostrador; no tiene que acordarse.', ramirez: 'Recibe el WhatsApp en su móvil.' },
             monitor: { ruta: ['renov', 'aviso'], pantallas: { renov: renov('Avisado') } },
             acciones: enElBanco.concat(aviso('movil-aviso', MSG_M), [[3.0, 'marca', 'mejora', 'ramirez', 'Nadie depende de acordarse', 3.0], [7.8, 'decir', 'ramirez', 'Vaya, tengo que pedir cita.', 2.0]]) },
@@ -3082,6 +3114,13 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== ÓPTIMO =====================
       { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa · por probar', color: '#1fb57a',
+        notaErrores: 'asegurado · ver cómo',
+        limites: { titulo: 'Cómo se asegura el 0', intro: 'No depende de que alguien se acuerde:', items: [
+          'Cada dispensación se lee del programa: ningún tratamiento queda sin fecha.',
+          'Aviso 30 y 7 días antes; si no se entrega, la farmacia lo ve y llama.',
+          'Quien no responde («Ya tengo cita» o «Llamadme») sale en la lista de la semana.',
+          'Condición: se asegura en el contrato después de probar la lectura de vuestro programa (POR PROBAR); hasta entonces funciona como el Mejorado.',
+        ] },
         cierre: 'Con el programa conectado, las fechas se leen solas, la app junta los tratamientos en una sola cita y el aviso lleva el enlace a la cita previa. 1,1 minutos por tratamiento. Por probar: depende de que el programa guarde las fechas de fin; si no, Lucía las apunta en un toque como en el Mejorado. ' + SIEMPRE,
         modulos: [mod(M.receta, { col: 0, fila: 0 }), mod(M.gestion, { col: 1, fila: 0, pantalla: 'gestion-probar', probar: true, nota: 'Depende de que el programa guarde las fechas de fin en la ficha: por probar. Alternativa: Lucía las apunta en un toque, como en el Mejorado.' }),
           { id: 'conector', nombre: 'Conector con el programa', tipo: 'nodo', pantalla: 'conector', col: 2, fila: 0, nuevo: true, probar: true,

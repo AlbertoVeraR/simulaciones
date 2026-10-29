@@ -416,6 +416,16 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .con-casos .toast { top: 206px; }
 }
 
+/* S66: límites del indicador de errores (tarjeta, ficha y resumen) */
+.tarjeta.con-limites { cursor: pointer; }
+.tarjeta.con-limites em { text-decoration: underline dotted; text-underline-offset: 2px; }
+.ficha-persona.ancha { width: 360px; max-width: calc(100% - 16px); }
+.limites b, .res-limites b { display: block; font-size: 14.5px; }
+.limites small, .res-limites small { display: block; margin-top: 3px; color: var(--suave); font-size: 12px; }
+.limites ul, .res-limites ul { margin: 7px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.4; color: #3d4860; }
+.limites li, .res-limites li { margin: 0 0 5px; }
+.res-limites { margin: 12px 0 0; padding: 10px 12px 6px; border-radius: 14px; background: #f4f7fb; }
+
 </style>
 </head>
 <body>
@@ -1737,6 +1747,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       ['horas', 'horas', I.horas || 'Horas al mes'], ['errores', 'errores', I.errores || 'Errores al mes'], ['ahorro', 'ahorro', I.ahorro || 'Ahorro al mes'],
     ];
     $(R, '.tarjetas').innerHTML = tarjetas.map(t => '<div class="tarjeta" data-k="' + t[0] + '"><i class="ico">' + ICO[t[1]] + '</i><div><small>' + esc(t[2]) + '</small><p><b>·</b><span class="estim">estimación</span></p><em></em></div></div>').join('');
+    $(R, '.tarjeta[data-k="errores"]').addEventListener('click', ev => { ev.stopPropagation(); u.fichaLimites(ev.currentTarget); });
     // Controles
     $(R, '.b-prev').addEventListener('click', () => s.pasoRelativo(-1));
     $(R, '.b-play').addEventListener('click', () => s.jugar());
@@ -1802,7 +1813,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
     pon('manuales', r.manuales, base ? 'hoy' : (r.manuales - b.manuales) + ' frente a hoy', base ? null : r.manuales < b.manuales);
     pon('min', n1(r.min) + ' min', base ? 'hoy' : 'antes ' + n1(b.min) + ' min', base ? null : true);
     pon('horas', n1(r.horas) + ' h', base ? n1(r.unidades) + ' ' + (G.unidad.varias || '') + ' al mes' : '−' + n1(r.ahorroH) + ' h al mes', base ? null : true);
-    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n0(b.errores), base ? null : true);
+    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : (e.notaErrores || 'antes ' + n0(b.errores)), base ? null : true);
+    $(u.raiz, '.tarjeta[data-k="errores"]').classList.toggle('con-limites', !!e.limites);   // S66: toca la tarjeta para ver los límites del escenario
     pon('ahorro', base ? '0 €' : n0(r.ahorro) + ' €', base ? 'punto de partida' : n0(r.ahorro * 12) + ' € al año', base ? null : true);
   };
 
@@ -1960,10 +1972,22 @@ canvas.lienzo3d:active { cursor: grabbing; }
   P.fichaPersona = function (p, x, y) {
     if (!p) return;
     const u = this, f = $(u.raiz, '.ficha-persona'), d = p.def, que = u.sim.queHace(p.id);
-    f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
+    f.classList.remove('ancha'); f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
     f.hidden = false;
     const W = u.raiz.clientWidth, w = f.offsetWidth, h = f.offsetHeight;
     f.style.left = Math.max(8, Math.min(W - w - 8, x - w / 2)) + 'px'; f.style.top = Math.max(8, y - h - 14) + 'px';
+  };
+  // S66: límites del indicador de errores del escenario (`limites: { titulo, intro, items }` y `notaErrores` en el guion)
+  P.htmlLimites = function (e, clase) {
+    const L = e && e.limites; if (!L) return '';
+    return '<div class="' + clase + '"><b>' + esc(L.titulo) + '</b>' + (L.intro ? '<small>' + esc(L.intro) + '</small>' : '') + '<ul>' + L.items.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+  };
+  P.fichaLimites = function (t) {
+    const u = this, e = u.sim.esc, f = $(u.raiz, '.ficha-persona'); if (!t || !e || !e.limites) return;
+    if (!f.hidden && f.classList.contains('ancha')) { f.hidden = true; return; }
+    f.innerHTML = u.htmlLimites(e, 'limites'); f.classList.add('ancha'); f.hidden = false;
+    const r = t.getBoundingClientRect(), ra = u.raiz.getBoundingClientRect(), W = u.raiz.clientWidth, w = f.offsetWidth;
+    f.style.left = Math.max(8, Math.min(W - w - 8, r.left - ra.left + r.width / 2 - w / 2)) + 'px'; f.style.top = (r.bottom - ra.top + 8) + 'px';
   };
   P.cerrarFicha = function () { const f = $(this.raiz, '.ficha-persona'); if (f) f.hidden = true; };
   P.cerrarTodo = function () { this.raiz.querySelectorAll('.modal').forEach(m => { m.hidden = true; }); this.cerrarFicha(); };
@@ -1979,7 +2003,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
       fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
-        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '')) +
+        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '') + u.htmlLimites(e, 'res-limites')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
       '<p class="nota">' + esc(G.notaDatos || 'Simulación con datos ficticios · cifras estimadas') + '</p></div>';
     $(R, '.resumen').hidden = false;
@@ -2275,6 +2299,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     else s.irA(0, 0, !pausa);
     if (h.get('resumen') === '1') { s.irA(s.pasos.length - 1, 1, false); s.ui.fin(); }
     if (h.get('preguntas') === '1' && s.G.preguntas && s.ui.abrirPreguntas) s.ui.abrirPreguntas();
+    if (h.get('limites') === '1' && s.ui.fichaLimites) setTimeout(() => s.ui.fichaLimites(s.ui.raiz.querySelector('.tarjeta[data-k="errores"]')), 400);   // S66
     s.escribiendo = false; s.escribirHash();
   };
   P.escribirHash = function () {
@@ -2963,7 +2988,7 @@ SIM.escena = function (K, M) {
       volumen: { etiqueta: 'Tickets con promoción al día', valor: 8, periodo: 'dia' },
       dias: { etiqueta: 'Días de trabajo al mes', valor: 24 },
       coste: { etiqueta: 'Coste de una hora (€)', valor: 16 },
-      errores: { etiqueta: 'Tickets no cobrados (%)', valores: { actual: 10, mejorado: 3, optimo: 0 } },
+      errores: { etiqueta: 'Tickets no cobrados (%)', valores: { actual: 10, mejorado: 0, optimo: 0 } },
     },
     formulas: 'Horas al mes = tickets al día × días × minutos por ticket ÷ 60. Ahorro al mes = (horas de hoy − horas del escenario) × €/hora. Tickets no cobrados al mes = tickets al mes × %. ' + SIEMPRE,
     preguntasTitulo: 'Preguntas para la farmacia',
@@ -3049,6 +3074,13 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== MEJORADO =====================
       { id: 'mejorado', nombre: 'Mejorado', lema: 'sin tocar el programa · se puede hoy', color: '#f2a516',
+        notaErrores: 'objetivo · ver límites',
+        limites: { titulo: 'Objetivo: 0 tickets sin cobrar', intro: 'Lo sostienen dos controles: la app revisa cada foto al vender y, al cerrar el día, se cuadra con el listado de ventas con promoción del programa. Puede fallar si:', items: [
+          'Una venta con promoción no se fotografía y el programa no saca el listado del día. En el Óptimo, las ventas se leen solas del programa.',
+          'Nadie sube el paquete antes del plazo, aunque la app avisa 5 días y 1 día antes. En el Óptimo, el lote sale solo donde el laboratorio lo acepte.',
+          'El laboratorio rechaza por una condición que no nos dio o que cambió: cada promoción se carga con sus condiciones y la app avisa al vender si el producto no entra.',
+          'Un abono no llega: el panel lo marca a los 30 días para reclamarlo. En el Óptimo, los cobros se cuadran solos con las facturas.',
+        ] },
         cierre: 'Una foto del ticket al venderlo y un panel con estados y plazos quitan el papel, el tecleo y los plazos vencidos: 2,2 minutos por ticket. Todo se puede hacer hoy, con cualquier programa de gestión. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'ticket1'], [0, 'ocultar', 'montonTickets'], [0, 'dejar', 'movilRamirez', 'mostrador.entrega'], [0, 'pantalla', 'movilR', 'movil-bloqueado']],
         modulos: [mod(M.programa, { col: 0, fila: 0 }),
@@ -3062,7 +3094,7 @@ SIM.escena = function (K, M) {
         tubos: [['programa', 'foto'], ['foto', 'lectura'], ['lectura', 'panel'], ['panel', 'avisos'], ['panel', 'solara'], ['solara', 'dermalia'], ['dermalia', 'vitanova'], ['factura', 'panel', 'arco']],
         pasos: [
           { titulo: 'Venta con promoción y foto', quien: 'Lucía y la clienta', donde: 'Mostrador', min: 0.3, modo: 'manual', hora: '10:20', dur: 20, foto: 0.8,
-            texto: 'Igual que hoy y, al imprimir, Lucía fotografía el ticket con el móvil de la farmacia (app «Promociones»).', mejoras: ['Ningún ticket depende del papel'], estado: 'Foto guardada', tonoEstado: 'mejora', personas: ['lucia', 'clienta'],
+            texto: 'Igual que hoy y, al imprimir, Lucía fotografía el ticket con el móvil de la farmacia (app «Promociones»): la app comprueba que se lee y que el producto entra en la promoción.', mejoras: ['Ningún ticket depende del papel'], estado: 'Foto guardada', tonoEstado: 'mejora', personas: ['lucia', 'clienta'],
             haciendo: { lucia: 'Fotografía el ticket con el móvil de la farmacia.', clienta: 'Compra el protector solar y se lleva su ticket.' },
             monitor: { ruta: ['programa', 'foto'], manual: ['programa', 'foto'] },
             acciones: venta('venta-promo').concat([
@@ -3070,8 +3102,8 @@ SIM.escena = function (K, M) {
               [12.8, 'decir', 'lucia', 'Foto del ticket y listo.', 2.0], [15.0, 'marca', 'mejora', 'ticket1', 'Ningún ticket depende del papel', 3],
               [15.0, 'dejar', 'movilRamirez', 'mostrador.entrega'], [15.2, 'hacer', 'lucia', 'libre'],
             ].concat(alaClienta(15.6))) },
-          { titulo: 'Agrupado solo', quien: 'El sistema (Carmen revisa)', donde: 'Panel de promociones', min: 0.1, modo: 'auto', hora: '10:25', dur: 9, foto: 0.4,
-            texto: 'La app lee laboratorio, producto, fecha e importe y lo pone en la lista de su promoción con su plazo.', mejoras: ['Sin separar a mano'], estado: 'Pendiente', tonoEstado: 'mejora', personas: ['carmen'],
+          { titulo: 'Agrupado solo', quien: 'El sistema (Carmen revisa)', donde: 'Panel de promociones', min: 0.2, modo: 'auto', hora: '10:25', dur: 9, foto: 0.4,
+            texto: 'La app lee laboratorio, producto, fecha e importe y lo pone en la lista de su promoción con su plazo. Al cerrar el día, Carmen la cuadra con el listado de ventas con promoción del programa: si falta un ticket, se reimprime y se fotografía.', mejoras: ['Sin separar a mano'], estado: 'Pendiente', tonoEstado: 'mejora', personas: ['carmen'],
             haciendo: { carmen: 'Revisa que la app lo puso en su promoción.' },
             monitor: { ruta: ['foto', 'lectura', 'panel'], pantallas: { panel: panel({ aviso: 'Solara: ticket 0087412 en su lista', actual: 'Pendiente' }) } },
             acciones: carmen.concat([[0.3, 'pantalla', 'pcCarmen', 'lectura-ia'], [3.0, 'pantalla', 'pcCarmen', panel({ aviso: 'Solara: ticket 0087412 en su lista' })], [3.4, 'marca', 'mejora', 'pcCarmen', 'Sin separar a mano', 3.5]]) },
@@ -3085,8 +3117,8 @@ SIM.escena = function (K, M) {
             haciendo: { carmen: 'Sube Dermalia y Vitanova a tiempo.' },
             monitor: { ruta: ['panel', 'avisos', 'dermalia', 'vitanova'], manual: ['dermalia', 'vitanova'], pantallas: { panel: panel({ solara: 'Subido', dermalia: 'Subido', vitanova: 'Subido', actual: 'Subido' }) } },
             acciones: carmen.concat([[0.3, 'pantalla', 'pcCarmen', 'aviso-plazo'], [1.0, 'decir', 'carmen', 'Me avisó hace 5 días.', 2.2], [4.0, 'pantalla', 'pcCarmen', 'portal-dermalia'], [5.5, 'marca', 'mejora', 'pcCarmen', 'Ningún plazo vence', 3]]) },
-          { titulo: 'Rechazos', quien: 'Carmen', donde: 'Trastienda', min: 0.3, modo: 'manual', hora: '16:20', dur: 9, foto: 0.5,
-            texto: 'El panel marca el ticket rechazado con su foto y su motivo: se vuelve a subir en el momento.', mejoras: ['Rechazo visto y resuelto'], estado: 'Rechazado → subido', tonoEstado: 'mejora', personas: ['carmen'],
+          { titulo: 'Rechazos', quien: 'Carmen', donde: 'Trastienda', min: 0.2, modo: 'manual', hora: '16:20', dur: 9, foto: 0.5,
+            texto: 'Hay menos rechazos, porque la foto y la promoción se comprobaron al vender; el que llega sale en el panel con su foto y su motivo y se vuelve a subir en el momento.', mejoras: ['Rechazo visto y resuelto'], estado: 'Rechazado → subido', tonoEstado: 'mejora', personas: ['carmen'],
             haciendo: { carmen: 'Vuelve a subir el ticket rechazado.' },
             monitor: { ruta: ['dermalia', 'panel'], manual: ['panel'], pantallas: { panel: panel({ solara: 'Rechazado', actual: 'Rechazado', aviso: 'Solara: ticket ilegible · foto y motivo a mano', tono: 'ambar' }) } },
             acciones: carmen.concat([[0.3, 'pantalla', 'pcCarmen', panel({ solara: 'Rechazado', actual: 'Rechazado', aviso: 'Solara: ticket ilegible · foto y motivo a mano', tono: 'ambar' })], [1.0, 'decir', 'carmen', 'Lo subo otra vez ahora.', 2.2], [4.0, 'marca', 'mejora', 'pcCarmen', 'Rechazo visto y resuelto', 3]]) },
@@ -3098,6 +3130,13 @@ SIM.escena = function (K, M) {
         ] },
       // ===================== ÓPTIMO =====================
       { id: 'optimo', nombre: 'Óptimo', lema: 'conectado al programa · por probar', color: '#1fb57a',
+        notaErrores: 'asegurado · ver cómo',
+        limites: { titulo: 'Cómo se asegura el 0', intro: 'No depende de que alguien se acuerde:', items: [
+          'Cada venta con promoción se lee del programa: no hace falta foto.',
+          'Cada ticket se sigue solo hasta cobrarse: plazo, envío, rechazo y abono.',
+          'El lote sale solo donde el laboratorio acepta fichero o correo; si solo tiene su portal, es un clic con el paquete listo y el aviso del día antes.',
+          'Condición: se asegura en el contrato después de probar la conexión con vuestro programa (POR PROBAR); hasta entonces funciona como el Mejorado.',
+        ] },
         cierre: 'Conectado al programa, el panel se llena solo cada noche, avisa de los plazos y cuadra los cobros: 0,9 minutos por ticket. Los módulos «POR PROBAR» dependen del programa de la farmacia, de sus laboratorios y de cómo lleguen las facturas; si alguno no lo permite, se usa la versión del Mejorado. ' + SIEMPRE,
         inicio: [[0, 'ocultar', 'ticket1'], [0, 'ocultar', 'montonTickets']],
         modulos: [mod(M.programa, { col: 0, fila: 0, probar: true, pantalla: 'venta-conector', nota: 'El programa de siempre, con la promoción aplicada. Depende del programa (Bitfarma, Farmatic, Nixfarma, Unycop…): por probar; si no, foto como en el Mejorado.' }),

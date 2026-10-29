@@ -416,6 +416,16 @@ canvas.lienzo3d:active { cursor: grabbing; }
   .con-casos .toast { top: 206px; }
 }
 
+/* S66: límites del indicador de errores (tarjeta, ficha y resumen) */
+.tarjeta.con-limites { cursor: pointer; }
+.tarjeta.con-limites em { text-decoration: underline dotted; text-underline-offset: 2px; }
+.ficha-persona.ancha { width: 360px; max-width: calc(100% - 16px); }
+.limites b, .res-limites b { display: block; font-size: 14.5px; }
+.limites small, .res-limites small { display: block; margin-top: 3px; color: var(--suave); font-size: 12px; }
+.limites ul, .res-limites ul { margin: 7px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.4; color: #3d4860; }
+.limites li, .res-limites li { margin: 0 0 5px; }
+.res-limites { margin: 12px 0 0; padding: 10px 12px 6px; border-radius: 14px; background: #f4f7fb; }
+
 </style>
 </head>
 <body>
@@ -1737,6 +1747,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       ['horas', 'horas', I.horas || 'Horas al mes'], ['errores', 'errores', I.errores || 'Errores al mes'], ['ahorro', 'ahorro', I.ahorro || 'Ahorro al mes'],
     ];
     $(R, '.tarjetas').innerHTML = tarjetas.map(t => '<div class="tarjeta" data-k="' + t[0] + '"><i class="ico">' + ICO[t[1]] + '</i><div><small>' + esc(t[2]) + '</small><p><b>·</b><span class="estim">estimación</span></p><em></em></div></div>').join('');
+    $(R, '.tarjeta[data-k="errores"]').addEventListener('click', ev => { ev.stopPropagation(); u.fichaLimites(ev.currentTarget); });
     // Controles
     $(R, '.b-prev').addEventListener('click', () => s.pasoRelativo(-1));
     $(R, '.b-play').addEventListener('click', () => s.jugar());
@@ -1802,7 +1813,8 @@ canvas.lienzo3d:active { cursor: grabbing; }
     pon('manuales', r.manuales, base ? 'hoy' : (r.manuales - b.manuales) + ' frente a hoy', base ? null : r.manuales < b.manuales);
     pon('min', n1(r.min) + ' min', base ? 'hoy' : 'antes ' + n1(b.min) + ' min', base ? null : true);
     pon('horas', n1(r.horas) + ' h', base ? n1(r.unidades) + ' ' + (G.unidad.varias || '') + ' al mes' : '−' + n1(r.ahorroH) + ' h al mes', base ? null : true);
-    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : 'antes ' + n0(b.errores), base ? null : true);
+    pon('errores', n0(r.errores), base ? n1(s.supuestos.errores[e.id]) + ' %' : (e.notaErrores || 'antes ' + n0(b.errores)), base ? null : true);
+    $(u.raiz, '.tarjeta[data-k="errores"]').classList.toggle('con-limites', !!e.limites);   // S66: toca la tarjeta para ver los límites del escenario
     pon('ahorro', base ? '0 €' : n0(r.ahorro) + ' €', base ? 'punto de partida' : n0(r.ahorro * 12) + ' € al año', base ? null : true);
   };
 
@@ -1960,10 +1972,22 @@ canvas.lienzo3d:active { cursor: grabbing; }
   P.fichaPersona = function (p, x, y) {
     if (!p) return;
     const u = this, f = $(u.raiz, '.ficha-persona'), d = p.def, que = u.sim.queHace(p.id);
-    f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
+    f.classList.remove('ancha'); f.innerHTML = '<b>' + esc(d.nombre) + '</b><small>' + esc(d.rol || '') + '</small>' + (que ? '<p><span>Ahora:</span> ' + esc(que) + '</p>' : '');
     f.hidden = false;
     const W = u.raiz.clientWidth, w = f.offsetWidth, h = f.offsetHeight;
     f.style.left = Math.max(8, Math.min(W - w - 8, x - w / 2)) + 'px'; f.style.top = Math.max(8, y - h - 14) + 'px';
+  };
+  // S66: límites del indicador de errores del escenario (`limites: { titulo, intro, items }` y `notaErrores` en el guion)
+  P.htmlLimites = function (e, clase) {
+    const L = e && e.limites; if (!L) return '';
+    return '<div class="' + clase + '"><b>' + esc(L.titulo) + '</b>' + (L.intro ? '<small>' + esc(L.intro) + '</small>' : '') + '<ul>' + L.items.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+  };
+  P.fichaLimites = function (t) {
+    const u = this, e = u.sim.esc, f = $(u.raiz, '.ficha-persona'); if (!t || !e || !e.limites) return;
+    if (!f.hidden && f.classList.contains('ancha')) { f.hidden = true; return; }
+    f.innerHTML = u.htmlLimites(e, 'limites'); f.classList.add('ancha'); f.hidden = false;
+    const r = t.getBoundingClientRect(), ra = u.raiz.getBoundingClientRect(), W = u.raiz.clientWidth, w = f.offsetWidth;
+    f.style.left = Math.max(8, Math.min(W - w - 8, r.left - ra.left + r.width / 2 - w / 2)) + 'px'; f.style.top = (r.bottom - ra.top + 8) + 'px';
   };
   P.cerrarFicha = function () { const f = $(this.raiz, '.ficha-persona'); if (f) f.hidden = true; };
   P.cerrarTodo = function () { this.raiz.querySelectorAll('.modal').forEach(m => { m.hidden = true; }); this.cerrarFicha(); };
@@ -1979,7 +2003,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
       fila(I.manuales || 'Pasos manuales', b.manuales, r.manuales) + fila(I.minutos || 'Minutos por unidad', n1(b.min), n1(r.min)) +
       fila(I.horas || 'Horas al mes', n1(b.horas) + ' h', n1(r.horas) + ' h') + fila(I.errores || 'Errores al mes', n0(b.errores), n0(r.errores)) + '</tbody></table>' +
       (base ? '<p class="res-texto">' + esc(e.cierre || 'Así se trabaja hoy. Mira los otros escenarios para ver cuánto se ahorra.') + '</p>'
-        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '')) +
+        : '<div class="res-ahorro"><b>' + n0(r.ahorro) + ' € al mes</b><span>' + n0(r.ahorro * 12) + ' € al año · ' + n1(r.ahorroH) + ' h de trabajo menos al mes</span><em>estimación</em></div>' + (e.cierre ? '<p class="res-texto">' + esc(e.cierre) + '</p>' : '') + u.htmlLimites(e, 'res-limites')) +
       '<div class="res-botones"><button data-accion="repetir">Ver otra vez</button>' + (sig ? '<button class="prin" data-accion="siguiente" data-esc="' + sig.id + '" style="--c:' + sig.color + '">Ver ' + esc(sig.nombre) + ' →</button>' : '<button data-accion="cerrar">Cerrar</button>') + '</div>' +
       '<p class="nota">' + esc(G.notaDatos || 'Simulación con datos ficticios · cifras estimadas') + '</p></div>';
     $(R, '.resumen').hidden = false;
@@ -2275,6 +2299,7 @@ canvas.lienzo3d:active { cursor: grabbing; }
     else s.irA(0, 0, !pausa);
     if (h.get('resumen') === '1') { s.irA(s.pasos.length - 1, 1, false); s.ui.fin(); }
     if (h.get('preguntas') === '1' && s.G.preguntas && s.ui.abrirPreguntas) s.ui.abrirPreguntas();
+    if (h.get('limites') === '1' && s.ui.fichaLimites) setTimeout(() => s.ui.fichaLimites(s.ui.raiz.querySelector('.tarjeta[data-k="errores"]')), 400);   // S66
     s.escribiendo = false; s.escribirHash();
   };
   P.escribirHash = function () {
